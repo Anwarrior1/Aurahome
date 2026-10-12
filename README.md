@@ -65,8 +65,12 @@ files and backup/configuration directories remain intact. `--report` is optional
 | Documents & printing | `src/main/reports/`, `src/main/services/documents/` |
 | UI | `src/renderer/**` — display only, no authoritative logic |
 
-## Windows build (later step)
+## Windows x64 test installer
 
-`npm run build:win` needs `resources/assets/brand/app-icon.ico`, which is
-not generated yet — see `resources/assets/brand/README.md`. Packaging is
-out of scope for Step 4.
+From a clean Windows x64 checkout, run `npm ci`, then `npm run build:win`.
+The unsigned NSIS installer is written to
+`release/AURA-home-TEST-Setup-0.1.0.exe`. The manual GitHub Actions workflow
+`Windows x64 test installer` runs checks, verifies the native SQLite module
+and packaged resources, uploads that `.exe` as the `AURA-home-Windows-x64-test`
+artifact, then creates a private TEST pre-release with the `.exe` attached.
+Windows laptop qualification and BDR-01 remain pending.

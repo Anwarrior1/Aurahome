@@ -19,7 +19,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "reset:business-data": "AURA_DEV_BUSINESS_RESET=1 node scripts/reset-business-data.mjs",
+    "reset:business-data": "node scripts/run-dev-business-reset.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "postinstall": "node node_modules/electron/install.js",

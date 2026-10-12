@@ -44,7 +44,8 @@ export function getRestoreRecoveryPaths(databasePath: string): { root: string; m
 }
 
 export function fsyncRestoreFile(path: string): void {
-  const fd = openSync(path, 'r')
+  // Windows requires a writable file handle for FlushFileBuffers.
+  const fd = openSync(path, 'r+')
   try { fsyncSync(fd) } finally { closeSync(fd) }
 }
 

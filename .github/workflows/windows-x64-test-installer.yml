@@ -82,7 +82,7 @@ jobs:
           retention-days: 14
 
       - name: Focused Windows backup and recovery tests
-        run: npx vitest run tests/integration/manual-only-backup.test.ts tests/unit/offline-recovery-state.test.ts
+        run: npx vitest run tests/integration/manual-only-backup.test.ts tests/unit/offline-recovery-state.test.ts tests/unit/offline-recovery-simulation.test.ts tests/unit/offline-recovery-preservation-faults.test.ts tests/database/db09-backup-streaming.test.ts tests/database/db08-restore-recovery.test.ts tests/database/migration-runner-safety.test.ts
       - name: Full test suite
         run: npm test
 

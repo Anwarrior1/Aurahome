@@ -61,7 +61,8 @@ function recordCounts(snapshotPath: string): Record<string, number> {
 }
 
 function fsyncFile(path: string): void {
-  const descriptor = openSync(path, 'r')
+  // Windows requires a writable file handle for FlushFileBuffers.
+  const descriptor = openSync(path, 'r+')
   try { fsyncSync(descriptor) } finally { closeSync(descriptor) }
 }
 

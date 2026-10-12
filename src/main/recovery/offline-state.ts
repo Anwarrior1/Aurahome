@@ -109,8 +109,15 @@ async function publishJson(path: string, value: unknown): Promise<void> {
   const file = await open(temp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
   try { await file.writeFile(JSON.stringify(value)); await file.sync() } finally { await file.close() }
   await rename(temp, path)
-  const directory = await open(join(path, '..'), 'r')
-  try { await directory.sync() } finally { await directory.close() }
+  await syncDirectory(join(path, '..'))
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  const directory = await open(path, 'r')
+  try { await directory.sync() } catch (error) {
+    // Windows does not permit FlushFileBuffers on a directory handle.
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EPERM') throw error
+  } finally { await directory.close() }
 }
 
 /** Publish the blocking marker first; a crash between the two writes remains blocked. */
@@ -205,7 +212,7 @@ export async function preserveOriginalTuple(
         sourceHashBefore !== retainedHash || copied.size !== before.size) {
       throw new Error(`Original file changed during preservation: ${name}`)
     }
-    const handle = await open(destination, 'r')
+    const handle = await open(destination, 'r+')
     try { hooks.beforeFlush?.(name); await handle.sync() } finally { await handle.close() }
     files.push({ name, present: true, size: before.size, sha256: retainedHash })
   }
@@ -213,7 +220,6 @@ export async function preserveOriginalTuple(
     try { await stat(join(dataRoot, entry.name)); throw new Error(`Sidecar appeared during preservation: ${entry.name}`) }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
   }
-  const directory = await open(retentionRoot, 'r')
-  try { await directory.sync() } finally { await directory.close() }
+  await syncDirectory(retentionRoot)
   return { files }
 }

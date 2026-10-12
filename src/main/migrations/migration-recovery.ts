@@ -53,7 +53,8 @@ export interface MigrationRecoveryPaths {
 }
 
 function fsyncFile(path: string): void {
-  const fd = openSync(path, 'r')
+  // Windows requires a writable file handle for FlushFileBuffers.
+  const fd = openSync(path, 'r+')
   try {
     fsyncSync(fd)
   } finally {

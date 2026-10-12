@@ -119,10 +119,13 @@ export async function pinLegacyArchive(
       firstHash !== finalHash || firstHash !== pinnedHash) {
     throw new Error('تغير ملف النسخة أثناء نسخه؛ توقفت الاستعادة')
   }
-  const pinned = await open(pinnedPath, 'r')
+  const pinned = await open(pinnedPath, 'r+')
   try { await pinned.sync() } finally { await pinned.close() }
   const directory = await open(caseRoot, 'r')
-  try { await directory.sync() } finally { await directory.close() }
+  try { await directory.sync() } catch (error) {
+    // Windows does not permit FlushFileBuffers on a directory handle.
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EPERM') throw error
+  } finally { await directory.close() }
   return { path: pinnedPath, sha256: pinnedHash, bytes: before.size }
 }
 

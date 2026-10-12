@@ -23,10 +23,16 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Check migration bytes and prepare disposable test scratch
+        shell: pwsh
+        run: |
+          node -e "const fs=require('node:fs'),crypto=require('node:crypto');const file='drizzle/migrations/0000_overconfident_doctor_octopus.sql';const actual=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');if(actual!=='e3486ee7f3085ad8b4227ec9aeb36f885591a5b500b836b41265c2f1aef89fbe')throw Error('Migration bytes changed at checkout');fs.mkdirSync('/tmp',{recursive:true});"
+      - name: Build application for tests
+        run: npm run build
       - name: Test
         run: npm test
       - name: Build unsigned x64 NSIS test installer
-        run: npm run build:win
+        run: npx electron-builder --win --x64 --publish never
 
       - name: Verify package and Electron SQLite ABI
         shell: pwsh

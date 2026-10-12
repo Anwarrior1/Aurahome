@@ -26,13 +26,17 @@ extraResources:
     to: drizzle/migrations
 
 asar: true
+asarUnpack:
+  - "**/better-sqlite3/prebuilds/*.node"
+# Keep native dependencies matched to the Electron runtime during packaging.
+npmRebuild: true
 
 win:
   target:
     - target: nsis
       arch: [x64]
   icon: resources/assets/brand/app-icon.ico
-  artifactName: "AURA-home-Setup-${version}.${ext}"
+  artifactName: "AURA-home-TEST-Setup-${version}.${ext}"
 
 nsis:
   oneClick: false

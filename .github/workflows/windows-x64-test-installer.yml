@@ -1,0 +1,78 @@
+name: Windows x64 test installer
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          architecture: x64
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build unsigned x64 NSIS test installer
+        run: npm run build:win
+
+      - name: Verify package and Electron SQLite ABI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = 'release/AURA-home-TEST-Setup-0.1.0.exe'
+          $app = 'release/win-unpacked/resources'
+          $required = @(
+            $installer,
+            "$app/app.asar",
+            "$app/assets/brand/logo-full.jpeg",
+            "$app/assets/fonts/Cairo-Regular.ttf",
+            "$app/assets/fonts/Cairo-SemiBold.ttf",
+            "$app/assets/fonts/fonts.css",
+            "$app/references/qr.jpeg",
+            "$app/drizzle/migrations/meta/_journal.json",
+            "$app/drizzle/migrations/0052_bl03_uncollected_resale_preparation_cost.sql"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing packaged file: $path" }
+          }
+          if (Get-ChildItem -LiteralPath $app -Recurse -File | Where-Object { $_.Name -match '^(\.env(\..*)?|.*\.(db|db-wal|db-shm|sqlite|sqlite3|aurabak))$' }) {
+            throw 'Private data or environment file found in packaged resources'
+          }
+
+          $asarEntries = & node node_modules/@electron/asar/bin/asar.js list "$app/app.asar"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect app.asar' }
+          foreach ($path in @('/out/main/index.js', '/out/preload/index.cjs', '/out/renderer/index.html', '/node_modules/better-sqlite3/lib/index.js')) {
+            if ($asarEntries -notcontains $path) { throw "Missing ASAR entry: $path" }
+          }
+          if ($asarEntries | Where-Object { $_ -match '(^|/)(\.env[^/]*|[^/]+\.(db|db-wal|db-shm|sqlite|sqlite3|aurabak))$' }) {
+            throw 'Private data or environment file found in app.asar'
+          }
+
+          $native = "$app/app.asar.unpacked/node_modules/better-sqlite3/prebuilds/win32-x64.node"
+          if (-not (Test-Path -LiteralPath $native -PathType Leaf)) { throw "Missing Windows x64 SQLite addon: $native" }
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          & .\node_modules\electron\dist\electron.exe -e "if(process.platform!=='win32'||process.arch!=='x64')throw Error('Wrong Electron target');const Database=require('./node_modules/better-sqlite3');const db=new Database(':memory:',{nativeBinding:process.argv[1]});if(db.prepare('select 1 as ok').get().ok!==1)throw Error('SQLite query failed');db.close();" (Resolve-Path -LiteralPath $native).Path
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged SQLite addon failed in Electron x64' }
+          Remove-Item Env:ELECTRON_RUN_AS_NODE
+          Get-FileHash -Algorithm SHA256 -LiteralPath $installer | Format-List
+
+      - name: Upload test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AURA-home-Windows-x64-test
+          path: release/AURA-home-TEST-Setup-0.1.0.exe
+          if-no-files-found: error
+          retention-days: 14

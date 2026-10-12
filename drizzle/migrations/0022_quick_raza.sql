@@ -1,0 +1,1 @@
+ALTER TABLE `planned_machines` ADD `rate_micro` integer;

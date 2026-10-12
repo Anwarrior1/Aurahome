@@ -1,0 +1,1 @@
+ALTER TABLE `releases` ADD `show_paid_exit_sentence` integer DEFAULT true;

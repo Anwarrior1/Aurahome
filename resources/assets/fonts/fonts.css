@@ -1,0 +1,20 @@
+/**
+ * Loaded by printed document templates via app://assets/fonts/fonts.css
+ * (src/main/reports/templates/base-document.template.ts). Same two
+ * files as src/renderer/styles/fonts.css, referenced through the
+ * app:// protocol instead of Vite's dev/build path so the UI and
+ * paper output resolve identical bytes (Step 2 §10).
+ */
+@font-face {
+  font-family: 'Cairo';
+  src: url('app://assets/fonts/Cairo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Cairo';
+  src: url('app://assets/fonts/Cairo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: block;
+}

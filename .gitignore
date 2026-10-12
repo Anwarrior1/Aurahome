@@ -1,0 +1,48 @@
+node_modules/
+out/
+release/
+build/
+*.log
+.DS_Store
+.vite/
+*.tsbuildinfo
+coverage/
+# Scratch output from the PDF-case tests (regenerated on every run).
+.tmp/
+
+# Private databases and SQLite sidecar files
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Manual backup archives
+*.aurabak
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Generated temporary test files
+tmp/
+
+# Generated Graphify analysis
+graphify-out/
+
+# Generated application and test output
+output/
+
+# Internal development and audit reports
+BDR/
+DB AUDITS/
+BE-BL AUDITS AND FIXES/
+security audit/
+Frontend/
+E2E/
+WORKFLOW_REVERSAL_REPORT.md
+MIGRATION_0044_0045_COMPATIBILITY_AUDIT.md
+CUSTOMER_CHANGE_*_FINAL.md

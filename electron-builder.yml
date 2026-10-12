@@ -1,0 +1,47 @@
+appId: com.aurahome.erp
+productName: AURA home
+copyright: Copyright © AURA home
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# Fonts and logo are shipped as loose files next to the executable
+# (not inside app.asar), reachable at runtime via process.resourcesPath
+# — this is how src/main/files/paths.ts's getAssetsRoot() and the
+# app://assets protocol resolve them in a packaged build.
+extraResources:
+  - from: resources/assets
+    to: assets
+  # Exact location QR supplied by the business for customer invoices.
+  - from: references/qr.jpeg
+    to: references/qr.jpeg
+  # Schema migrations must ship with the app: they are what moves an
+  # existing database forward at startup (src/main/migrations).
+  - from: drizzle/migrations
+    to: drizzle/migrations
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/assets/brand/app-icon.ico
+  artifactName: "AURA-home-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "AURA home"
+  # Business data lives under %APPDATA%\AURA home (see
+  # src/main/files/paths.ts) which this installer/uninstaller never
+  # references — uninstalling never deletes it (Step 2 §5).
+  deleteAppDataOnUninstall: false

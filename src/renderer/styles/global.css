@@ -1,0 +1,918 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+
+/**
+ * AURA home — Soft UI design system.
+ *
+ * Every surface, control and popover in the authenticated app is
+ * composed from the shared scales in theme/tokens.css (--sp-*, --r-*,
+ * --shadow-*, --tint-*, --fs-*) rather than one-off values, so the
+ * whole interface reads as one design family: soft warm surfaces,
+ * a deliberate radius hierarchy (small controls tighter, shell
+ * surfaces roundest), layered low-contrast depth instead of hard
+ * outlines, and generous, consistent spacing.
+ *
+ * RTL is authoritative: anything directional uses logical properties
+ * (inset-inline-*, padding-inline-*, border-inline-*) so the design
+ * language reads correctly right-to-left rather than being mirrored
+ * from an LTR reference.
+ */
+
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Cairo', sans-serif;
+  font-weight: 400;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Type hierarchy — page title, section/card title, then body. Arabic
+   stays at readable weights (never hairline) at every level. */
+h1, h2, h3, h4 { font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: var(--fs-page-title); }
+h2 { font-size: var(--fs-section); }
+h3 { font-size: 13.5px; }
+
+/* Money and quantity columns use tabular figures so amounts align.
+   All numerals are formatted with Intl's -u-nu-latn (BR-27). */
+.money, .numeric, .stat__value { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- App shell ---------- */
+/* The large canvas visible behind the cards (through the transparent
+   .main-area / .content above it). The gradient itself lives in
+   theme/tokens.css as --bg-canvas so the authenticated shell and the
+   pre-auth screens share one background source and it flips with the
+   theme through the existing token architecture. */
+.app-shell {
+  display: flex; height: 100%; overflow: hidden;
+  background: var(--bg-canvas);
+}
+
+/* Floating rounded panel (sidebar redesign — visual/interaction only,
+   same tokens as before: --bg-sidebar/--text-sidebar already flip
+   correctly between light/dark themes in tokens.css). Inset on every
+   side so it never touches the window edges, matching the headbar's
+   own floating treatment for a consistent shell. The faint top-down
+   sheen is what gives the dark rail its soft, dimensional feel. */
+.sidebar {
+  width: 232px; flex-shrink: 0; background: var(--bg-sidebar); color: var(--text-sidebar);
+  display: flex; flex-direction: column; overflow: hidden;
+  margin: 14px; border-radius: 22px; box-shadow: var(--shadow-shell);
+}
+.sidebar { background-image: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 42%); }
+
+/* Logo alone, centered on the sidebar's own full width (item 4) —
+   presented on its own softly rounded tile, the way the reference
+   seats a mark at the top of the rail. The asset itself is unchanged. */
+.sidebar__brand { display: flex; align-items: center; justify-content: center; padding: 18px 16px 14px; flex-shrink: 0; }
+.sidebar__brand img {
+  width: 42px; height: 42px; object-fit: contain; border-radius: var(--r-md);
+  background: #fff; padding: 3px; box-shadow: var(--shadow-xs);
+}
+.sidebar__brand-sub { font-size: var(--fs-xs); color: var(--text-sidebar-muted); }
+
+/* Only this middle region scrolls — the brand header above and the
+   signed-in footer below stay pinned, and the sidebar itself never
+   grows past the window height. */
+.sidebar__nav { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: var(--sp-1) var(--sp-2) var(--sp-3); }
+.sidebar__nav::-webkit-scrollbar { width: 6px; }
+.sidebar__nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: var(--r-pill); }
+
+/* A nav row: rounded, comfortable, with the active state carrying a
+   soft fill plus an accent bar on the reading-start (right, RTL)
+   edge — the reference's active treatment translated to RTL. */
+.sidebar__link {
+  display: flex; align-items: center; gap: var(--sp-2); padding: 7px 10px; color: var(--text-sidebar);
+  text-decoration: none; font-size: 13px; border-inline-start: 3px solid transparent; cursor: pointer;
+  border-radius: var(--r-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background .14s, color .14s;
+}
+.sidebar__link:hover { background: rgba(181,163,146,.10); }
+.sidebar__link.active { background: rgba(181,163,146,.16); border-inline-start-color: var(--color-brand-400); font-weight: 600; }
+/* Subtle rounded container behind each glyph — the reference's
+   icon-container treatment, kept restrained (brand taupe tint only,
+   no color-scheme change). */
+.sidebar__icon-wrap {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(181,163,146,.10); color: var(--text-sidebar);
+  transition: background .14s, color .14s;
+}
+.sidebar__link:hover .sidebar__icon-wrap { background: rgba(181,163,146,.18); }
+.sidebar__link.active .sidebar__icon-wrap {
+  background: var(--color-brand-400); color: var(--bg-sidebar);
+}
+.sidebar__icon { width: 17px; height: 17px; }
+
+/* Collapsible section (a nav group with more than one item). Closed,
+   it looks like any other flat row; open, the header + its children
+   read as one rounded grouped panel — an accordion, exactly one open
+   at a time (state lives in AppLayout, driven by the active route). */
+.sidebar__section { border-radius: var(--r-lg); margin-block: 2px; }
+.sidebar__section--open { background: rgba(181,163,146,.08); padding-bottom: var(--sp-2); }
+.sidebar__section-toggle {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%; padding: 7px 10px;
+  background: transparent; border: none; border-radius: var(--r-md); cursor: pointer;
+  color: var(--text-sidebar); font: inherit; text-align: right;
+  transition: background .14s;
+}
+.sidebar__section-toggle:hover { background: rgba(181,163,146,.10); }
+.sidebar__section-label { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar__section-chevron { flex-shrink: 0; color: var(--text-sidebar-muted); transition: transform .18s; }
+.sidebar__section-chevron--open { transform: rotate(180deg); }
+
+/* Children sit inside the grouped panel, indented from the reading
+   (right, RTL) edge via a logical inline-start offset rather than a
+   hardcoded left/right value — the same rule flips correctly if the
+   app ever ran LTR. The active child gets a solid pill fill, visibly
+   stronger than the flat items' subtle tint + accent bar above. */
+.sidebar__section-children { display: flex; flex-direction: column; gap: 2px; padding-inline-start: var(--sp-2); padding-inline-end: var(--sp-1); }
+.sidebar__section-children .sidebar__link { padding-inline-start: var(--sp-3); padding-inline-end: var(--sp-2); border-inline-start: none; border-radius: var(--r-pill); }
+.sidebar__section-children .sidebar__link.active {
+  background: var(--color-brand-400); color: var(--bg-sidebar); font-weight: 600;
+}
+.sidebar__section-children .sidebar__link.active .sidebar__icon-wrap { background: transparent; color: var(--bg-sidebar); }
+
+/* ---------- Sidebar brand watermark ----------
+   Fills the sidebar's leftover vertical space: it grows into whatever
+   the nav does not use. It never shrinks, so the letters are never
+   clipped mid-glyph; when the menu is fully expanded on a short
+   window the nav (the only shrinkable row here) gives up the space
+   and scrolls internally, exactly as it already did — the account
+   area below stays pinned either way. */
+.sidebar__watermark {
+  flex: 1 0 auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 13px; padding-block: var(--sp-4);
+  /* Cap height every letterform is scaled to. Because all four glyphs
+     were cut at the same cap height from the wordmark, one value here
+     keeps their original relative proportions exactly. */
+  --wm-cap: 54px;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* Each letter is the ORIGINAL AURA wordmark letterform, cut from
+   logo/logo.jpeg and shipped as a `data:` image (see
+   assets/aura-wordmark.ts) — the logo's own geometry, no font and no
+   redrawing. They are real <img> elements rather than CSS masks: a
+   mask that fails to load paints nothing at all and hides the letters
+   silently, whereas this is the same mechanism the renderer already
+   uses for the profile-photo avatar and resolves identically in dev,
+   in the production build and in the packaged app.
+   Only the height is set — width follows the image's own aspect
+   ratio, so a glyph can never be stretched. */
+.sidebar__wm-letter {
+  display: block; height: var(--wm-cap); width: auto; flex-shrink: 0;
+  opacity: .5; cursor: default;
+  transition: opacity .2s ease, transform .2s ease, filter .2s ease;
+}
+/* Per-letter hover only — the container carries no hover of its own,
+   so lighting up "U" leaves A, R and A untouched. The glyphs are
+   pre-tinted to --text-sidebar-muted, so hover brightens them toward
+   the lighter brand tone and adds the accent glow. */
+.sidebar__wm-letter:hover {
+  opacity: 1; transform: scale(1.06);
+  filter: brightness(1.25)
+          drop-shadow(0 0 9px var(--color-brand-400))
+          drop-shadow(0 0 20px var(--color-brand-500));
+}
+
+/* Shorter windows: scale the whole set down rather than clip it. */
+@media (max-height: 820px) { .sidebar__watermark { --wm-cap: 44px; gap: 12px; } }
+@media (max-height: 720px) { .sidebar__watermark { --wm-cap: 34px; gap: 10px; } }
+
+.sidebar__foot { flex-shrink: 0; margin-top: auto; padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid rgba(255,255,255,.08); }
+
+/* Compact icon-only edit/delete buttons for row actions — softly
+   rounded containers, semantic on hover so destructive stays
+   unmistakable. */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--r-sm); border: 1px solid transparent;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.icon-btn:hover { background: var(--hover-strong); color: var(--text-primary); }
+.icon-btn--danger:hover { background: var(--tint-danger); color: var(--color-danger); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+.icon-btn:disabled:hover { background: transparent; }
+
+/* Category tree — a comfortable, low-noise expand/collapse tree,
+   RTL-indented to the right of each parent (item 13). Separators sit
+   only BETWEEN top-level branches (.category-branch--root), never
+   between every row, so an expanded parent's children read as nested
+   content rather than more grid lines (item 12). */
+.category-tree { margin-top: var(--sp-2); }
+
+.category-branch--root { border-bottom: 1px solid var(--border-default); }
+.category-branch--root:last-child { border-bottom: none; }
+
+.category-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-2); min-height: 36px; padding: 7px 2px;
+}
+.category-row--child { padding-block: 5px; }
+
+.category-row__label { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }
+.category-row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-row--parent .category-row__name { font-weight: 600; font-size: var(--fs-body); }
+.category-row--child .category-row__name { font-weight: 400; font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.category-row__count { flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+
+.category-branch__children { padding-right: 2px; }
+
+.category-row__toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: var(--r-xs); border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer; flex-shrink: 0;
+  transition: background .14s, color .14s;
+}
+.category-row__toggle:hover { background: var(--hover-strong); color: var(--text-primary); }
+.category-row__toggle--leaf { cursor: default; width: 24px; flex-shrink: 0; }
+.category-row__toggle--leaf:hover { background: transparent; }
+
+/* Raw Materials hierarchy path: one quiet breadcrumb line inside the
+   table cell. The run itself stays root-to-current (LTR), while each
+   mixed Arabic/Latin label is isolated independently by its <bdi>. */
+.material-path-breadcrumb {
+  display: block;
+  width: min(300px, 28vw);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: inherit;
+  direction: ltr;
+  text-align: left;
+}
+.material-path-breadcrumb__parent {
+  color: var(--text-secondary);
+  font-weight: 400;
+  unicode-bidi: isolate;
+}
+.material-path-breadcrumb__current {
+  color: var(--text-primary);
+  font-weight: 500;
+  unicode-bidi: isolate;
+}
+.material-path-breadcrumb__separator {
+  display: inline-block;
+  margin-inline: 6px;
+  color: var(--text-muted);
+  font-weight: 400;
+  opacity: .72;
+}
+
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* Global headbar (item 10) — a dark bar in Light Mode, a lighter
+   contrasting bar in Dark Mode; both colors come from --bg-headbar/
+   --text-headbar in tokens.css, never hard-coded here.
+   Floating pill-shaped bar, inset from the window/content edges on
+   every side (never flush against them) — a CSS Grid with three
+   columns (1fr / auto / 1fr) so the date navigator sits at the true
+   visual center regardless of how wide the other two groups are. In
+   RTL that puts DOM order greeting → date-nav → actions at
+   right → center → left exactly as before, with no change to the
+   markup, its logic, or control order. */
+.headbar {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+  align-items: center; gap: var(--sp-4);
+  margin: 14px var(--sp-5) 0; padding: 10px var(--sp-6); border-radius: var(--r-pill);
+  background: var(--bg-headbar); color: var(--text-headbar);
+  box-shadow: var(--shadow-shell);
+}
+/* "AURA"/"HOME" wordmark halves flanking the centered date navigator
+   (item 1) — same family/weight scale as the rest of the headbar,
+   sized to read as intentional branding without competing with the
+   date controls or the user/session info on either side. */
+/* The wordmark is no longer text: each letter is a mask cut from
+   logo/logo.jpeg, painted in currentColor so the existing
+   --text-headbar keeps driving it in both themes (the headbar
+   inverts, so a pre-tinted image could not work here). Sizing stays
+   in the same visual slot the text occupied. */
+.headbar__brand-word {
+  color: var(--text-headbar); white-space: nowrap; justify-self: center;
+  display: inline-flex; align-items: center; gap: 3px;
+  /* The glyphs are a Latin wordmark inside an RTL page. As plain text
+     the bidi algorithm ran them left-to-right on their own; as flex
+     children they would follow the page direction and render the word
+     mirrored, so the run is pinned back to ltr. */
+  direction: ltr;
+  --brand-h: 19px;
+}
+/* "home" is genuinely lowercase in the logo, so its box carries the
+   ascender band; a slightly shorter box lands its x-height at a
+   weight that balances the AURA caps beside it. Its bolder look comes
+   from the source letterform itself (cut from the logo at that
+   weight) — no stroke dilation, no filter. */
+.headbar__brand-word--home {
+  --brand-h: 17px;
+}
+
+/* Static: no glow, no filter, no animation — just the glyph's own
+   pixels, masked and painted in currentColor. */
+.brand-glyph {
+  display: block; height: var(--brand-h); flex-shrink: 0;
+}
+.brand-glyph::before {
+  content: ''; display: block; width: 100%; height: 100%;
+  background: currentColor;
+  -webkit-mask-image: var(--glyph); mask-image: var(--glyph);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+}
+.headbar__greeting { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: right; }
+.headbar__greeting strong { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.headbar__role { font-size: var(--fs-xs); color: var(--text-headbar-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* minmax(0, …) above is what lets the two flexible end columns
+   actually shrink: a bare 1fr floors at its content's min-content
+   width, which pushed the greeting into the HOME wordmark on
+   narrower laptops. The greeting then truncates instead of
+   colliding. Below that, the bar tightens its own gutters rather
+   than relying on any fixed breakpoint layout. */
+@media (max-width: 1180px) {
+  .headbar { gap: var(--sp-2); padding: 10px var(--sp-4); }
+  .headbar__brand-word { gap: 2px; }
+}
+/* At the app's narrowest supported widths the name/role block is the
+   first thing to go — the avatar still opens the same menu, and the
+   name is always visible in the sidebar footer. */
+@media (max-width: 1080px) {
+  .headbar__greeting { display: none; }
+}
+
+/* ---------- Account menu (greeting + avatar + photo actions) ---------- */
+.account-menu { position: relative; justify-self: start; min-width: 0; }
+.account-menu__trigger {
+  display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
+  background: transparent; border: none; padding: 3px 5px; border-radius: var(--r-pill);
+  color: inherit; font: inherit; cursor: pointer; transition: background .14s;
+}
+.account-menu__trigger:hover { background: var(--chrome-soft); }
+.account-menu__trigger:disabled { cursor: default; opacity: .7; }
+.account-menu__avatar {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 999px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--chrome-strong); color: var(--text-headbar);
+  box-shadow: 0 0 0 2px var(--chrome-soft);
+}
+/* Circular, cropped without distortion — never stretched. */
+.account-menu__avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.account-menu__dropdown {
+  position: absolute; top: calc(100% + 10px); inset-inline-start: 0;
+  background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden; z-index: 20;
+}
+/* Compact icon-only photo actions — [Edit] [Delete], not a text list
+   (item "ICON ACTION DESIGN"). Sized to just fit the two icon
+   buttons, never wider than necessary. */
+.account-menu__dropdown--icons { display: flex; align-items: center; gap: var(--sp-1); padding: 6px; }
+
+/* ---------- Date navigator (modernized — presentation only) ---------- */
+.date-nav {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0; justify-self: center;
+  padding-inline: var(--sp-3); border-inline: 1px solid rgba(255,255,255,.14);
+}
+:root[data-theme='dark'] .date-nav { border-inline-color: rgba(0,0,0,.14); }
+.date-nav__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 999px; border: none; flex-shrink: 0;
+  background: transparent; color: var(--text-headbar); cursor: pointer;
+  transition: background .14s;
+}
+.date-nav__btn:hover { background: var(--chrome-soft); }
+.date-nav__btn:active { background: var(--chrome-strong); }
+.date-nav__btn--calendar { position: relative; margin-inline-end: var(--sp-1); }
+.date-nav__btn--calendar input[type='date'] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+
+/* The date itself — the strong main line plus a clearly secondary,
+   quieter weekday underneath; no persistent filled pill/rectangle
+   behind it any more, just a hover tint matching the icon buttons. */
+.date-nav__display {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px var(--sp-3); border-radius: var(--r-md); min-width: 150px;
+  background: transparent; border: none; color: inherit; font: inherit; cursor: pointer;
+  transition: background .14s;
+}
+.date-nav__display:hover { background: rgba(255,255,255,.08); }
+:root[data-theme='dark'] .date-nav__display:hover { background: rgba(0,0,0,.06); }
+.date-nav__main { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.date-nav__sub {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 400; color: var(--text-headbar-muted); white-space: nowrap;
+}
+/* "اليوم" — a small secondary badge, shown only for the actual
+   current date, never a permanent fixture of the date string. */
+.date-nav__today-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  background: var(--chrome-strong); color: inherit; line-height: 1.5;
+}
+
+.headbar__actions { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; justify-self: end; }
+.headbar-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--r-sm); border: none;
+  background: transparent; color: var(--text-headbar); cursor: pointer;
+  transition: background .14s;
+}
+.headbar-icon-btn:hover { background: var(--chrome-soft); }
+
+/* ---------- Notifications Bell ---------- */
+.notif-bell { position: relative; }
+.notif-bell__badge {
+  position: absolute; top: -2px; inset-inline-end: -2px;
+  min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-danger); color: #fff;
+  font-size: 9.5px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--bg-headbar);
+}
+
+/* A frosted-glass surface floating over the page rather than a flat
+   card: the panel is translucent and blurs its own backdrop, so the
+   canvas gradient (and anything it overlaps) tints the material
+   warmly without ever reaching the text.
+   The base rule below deliberately keeps the OPAQUE --bg-card
+   surface: that is the fallback for engines with no backdrop-filter,
+   where a translucent panel would leave the content sitting on clear
+   glass. The frosted material is layered on inside @supports only. */
+.notif-dropdown {
+  position: absolute; top: calc(100% + 10px); inset-inline-end: 0;
+  width: 340px; max-width: 88vw; max-height: 420px;
+  display: flex; flex-direction: column;
+  background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid rgba(255, 252, 248, .70); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 20; overflow: hidden;
+}
+/* Dark mode edge: a warm light hairline, not a bright outline. */
+:root[data-theme='dark'] .notif-dropdown { border-color: rgba(255, 246, 235, .10); }
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .notif-dropdown {
+    background: rgba(255, 252, 248, .74);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    backdrop-filter: blur(18px) saturate(125%);
+  }
+  /* Warm charcoal/espresso glass — never black, navy or purple. */
+  :root[data-theme='dark'] .notif-dropdown { background: rgba(35, 31, 28, .74); }
+}
+
+.notif-dropdown__head {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); font-size: 13px; font-weight: 700;
+  border-bottom: 1px solid rgba(140, 120, 100, .18);
+}
+.notif-dropdown__clear {
+  border: none; padding: 2px 4px; border-radius: var(--r-sm); background: transparent;
+  color: var(--text-muted); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+}
+.notif-dropdown__clear:hover { background: var(--hover-soft); color: var(--color-danger); }
+.notif-dropdown__empty { padding: var(--sp-6) var(--sp-4); text-align: center; color: var(--text-muted); font-size: var(--fs-sm); }
+.notif-dropdown__list { overflow-y: auto; }
+
+.notif-item {
+  display: flex; align-items: flex-start; gap: var(--sp-2); width: 100%;
+  padding: var(--sp-3) var(--sp-4); background: transparent; border: none; border-bottom: 1px solid rgba(140, 120, 100, .18);
+  text-align: right; cursor: pointer; color: inherit; font: inherit;
+  transition: background .14s;
+}
+.notif-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--hover-soft); }
+.notif-item--unread { background: var(--tint-brand); }
+.notif-item--unread:hover { background: var(--hover-strong); }
+.notif-item__icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-brand); color: var(--color-brand-700); margin-top: 1px;
+}
+:root[data-theme='dark'] .notif-item__icon { color: var(--color-brand-300); }
+.notif-item__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.notif-item__title { font-size: var(--fs-sm); font-weight: 700; }
+.notif-item__desc { font-size: var(--fs-label); color: var(--text-secondary); overflow-wrap: anywhere; }
+.notif-item__date { font-size: 10.5px; color: var(--text-muted); }
+.notif-item__dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 999px; background: var(--color-danger); margin-top: 6px; }
+.notif-item__delete {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 25px; height: 25px; padding: 0; margin-top: 1px; border: none; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-muted); cursor: pointer; transition: background .14s, color .14s;
+}
+.notif-item__delete:hover, .notif-item__delete:focus-visible {
+  background: var(--tint-danger); color: var(--color-danger); outline: none;
+}
+
+/* Generous, calm page canvas — the cards do the visual grouping, so
+   the canvas itself stays quiet and evenly gutter-aligned with the
+   floating headbar above it. */
+.content { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5) var(--sp-8); }
+
+/* ---------- Page furniture ---------- */
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.page-head h1 { line-height: 1.35; }
+.page-head__sub { margin: 3px 0 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+.page-head__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.customer-title { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.customer-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; height: 24px; padding-inline: 8px;
+  border: 1px solid var(--border-default); border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .48); color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .66), 0 2px 8px rgba(73, 62, 52, .08);
+  font-size: var(--fs-xs); font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .customer-count-badge { -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%); }
+}
+:root[data-theme='dark'] .customer-count-badge {
+  background: rgba(255, 255, 255, .07); border-color: rgba(255, 246, 235, .12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 2px 8px rgba(0, 0, 0, .16);
+}
+
+/* The core surface of the whole app: soft white panel, generous
+   radius, hairline edge and a layered ambient shadow rather than a
+   hard outline. Every page composes from this one treatment. */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: var(--r-lg); padding: 18px var(--sp-5); margin-bottom: var(--sp-4);
+  box-shadow: var(--shadow-sm);
+}
+.card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.card__title { font-size: var(--fs-section); font-weight: 700; }
+.card__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+.toolbar { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: flex-end; margin-bottom: var(--sp-3); }
+.toolbar .field { margin: 0; min-width: 150px; }
+
+.grid { display: grid; gap: var(--sp-4); }
+.grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .grid--4, .grid--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid--3 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 720px) { .grid--2, .grid--3, .grid--4, .grid--5 { grid-template-columns: 1fr; } }
+
+/* ---------- Controls ---------- */
+.btn {
+  font-family: inherit; font-weight: 600; border-radius: var(--r-md); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid transparent; white-space: nowrap;
+  transition: background .15s, border-color .15s, box-shadow .15s, transform .1s;
+}
+.btn--md { padding: 8px var(--sp-4); font-size: 13px; min-height: 36px; }
+.btn--sm { padding: 5px var(--sp-3); font-size: 12px; min-height: 30px; }
+.btn--primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); box-shadow: var(--shadow-xs); }
+.btn--primary:hover { background: var(--btn-primary-hover); box-shadow: var(--shadow-sm); }
+/* A raised soft surface rather than an outline — reads as a real
+   control at rest, exactly like the reference's light chips. */
+.btn--secondary { background: var(--bg-card); border-color: var(--border-default); color: var(--text-primary); box-shadow: var(--shadow-xs); }
+.btn--secondary:hover { background: var(--bg-inset); border-color: var(--border-strong); }
+.btn--ghost { background: transparent; color: var(--text-secondary); }
+.btn--ghost:hover { background: var(--hover-strong); color: var(--text-primary); }
+/* Destructive keeps its full semantic weight — never softened into
+   looking like a neutral action. */
+.btn--destructive { background: var(--color-danger); color: #fff; box-shadow: var(--shadow-xs); }
+.btn--destructive:hover { background: var(--color-danger); box-shadow: var(--shadow-sm); filter: brightness(.93); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: var(--sp-3); }
+.field__label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.field__req { color: var(--color-danger); }
+/* "إظهار في PDF" — a deliberately small, quiet switch beside a field's
+   caption. RTL: the label row flows right-to-left like everything else,
+   so margin-inline-start pushes the box away from the caption text
+   toward the row's end rather than crowding it. */
+.field__label { display: flex; align-items: center; gap: 6px; }
+.print-toggle {
+  flex-shrink: 0; width: 13px; height: 13px; margin: 0;
+  accent-color: var(--color-brand-500); cursor: pointer;
+}
+.print-toggle:disabled { cursor: not-allowed; opacity: .45; }
+/* Inside a field's caption the switch sits at the row's end, so the
+   switches line up in a tidy column down the form. Everywhere else
+   (the strips, the include-flag row) it stays beside its own caption. */
+.field__label .print-toggle { margin-inline-start: auto; }
+.print-options {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+  margin-bottom: var(--sp-3); padding: 7px var(--sp-3);
+  background: var(--bg-inset); border: 1px solid var(--border-default); border-radius: var(--r-md);
+}
+.print-options__title { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); }
+.print-options__item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.field__hint { font-size: var(--fs-xs); color: var(--text-muted); }
+.field__error { font-size: var(--fs-label); color: var(--color-danger); }
+
+/* Inputs read as gently recessed wells that lift to the card surface
+   on focus — soft, but with an unmistakable focus ring. */
+.input {
+  font-family: inherit; font-size: 13px; padding: 8px var(--sp-3); min-height: 36px;
+  border-radius: var(--r-md); border: 1px solid var(--border-default);
+  background: var(--bg-inset); color: var(--text-primary); width: 100%;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+.input:hover:not(:disabled) { border-color: var(--border-strong); }
+.input:focus { background: var(--bg-card); border-color: var(--focus-ring); outline: none; box-shadow: 0 0 0 3px rgba(148,135,124,.22); }
+.input:disabled { background: var(--bg-inset); opacity: .6; cursor: not-allowed; }
+.input--num { direction: ltr; text-align: left; font-variant-numeric: tabular-nums; }
+.input--area { min-height: 84px; resize: vertical; line-height: 1.6; }
+select.input { cursor: pointer; }
+
+/* ---------- Searchable customer select (Preliminary/Approved Invoice) ----------
+   Same trigger footprint as a plain .input/<Select>; the search field
+   and results only exist while the dropdown is open, in a popover
+   using the same card/shadow/radius language as .account-menu__dropdown
+   and .notif-dropdown elsewhere in the app. */
+.customer-select { position: relative; }
+.customer-select__trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  font-family: inherit; font-size: 13px; padding: 8px var(--sp-3); min-height: 36px;
+  border-radius: var(--r-md); border: 1px solid var(--border-default);
+  background: var(--bg-inset); color: var(--text-primary); width: 100%; text-align: right;
+  cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s;
+}
+.customer-select__trigger:hover:not(:disabled) { border-color: var(--border-strong); }
+.customer-select__trigger[aria-expanded='true'] { background: var(--bg-card); border-color: var(--focus-ring); box-shadow: 0 0 0 3px rgba(148,135,124,.22); }
+.customer-select__trigger:disabled { background: var(--bg-inset); opacity: .6; cursor: not-allowed; }
+.customer-select__chevron { flex-shrink: 0; color: var(--text-muted); }
+
+.customer-select__dropdown {
+  position: absolute; top: calc(100% + 4px); inset-inline-start: 0; z-index: 30;
+  width: 100%; min-width: 240px;
+  display: flex; flex-direction: column;
+  background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+/* The search field itself — compact, inside the popover, never part
+   of the always-visible form. */
+.customer-select__search {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  padding: 8px var(--sp-3); border-bottom: 1px solid var(--border-default); color: var(--text-muted);
+}
+.customer-select__search input {
+  flex: 1; border: none; background: transparent; font: inherit; color: var(--text-primary); min-width: 0;
+}
+.customer-select__search input:focus { outline: none; }
+
+.customer-select__list { list-style: none; margin: 0; padding: 4px; max-height: 220px; overflow-y: auto; }
+.customer-select__empty { margin: 0; padding: 16px var(--sp-3); text-align: center; color: var(--text-muted); font-size: var(--fs-sm); }
+.customer-select__option {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); width: 100%;
+  padding: 7px var(--sp-2); border: none; border-radius: var(--r-sm); background: transparent;
+  font: inherit; color: inherit; text-align: right; cursor: pointer;
+}
+.customer-select__option:hover, .customer-select__option--active { background: var(--hover-strong); }
+.customer-select__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.customer-select__phone { flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-muted); direction: ltr; }
+
+/* ---------- Table ----------
+   Still a real ERP table (dense enough to scan a full order book),
+   but seated in a soft rounded shell with a quiet header and
+   hairline separators instead of grid lines. */
+.table-wrap {
+  overflow-x: auto; border: 1px solid var(--border-default); border-radius: var(--r-lg);
+  background: var(--bg-card); box-shadow: var(--shadow-sm);
+}
+/* Inside a card the shell would double up — the card already
+   provides the surface, so the table just keeps its own edge. */
+.card .table-wrap { box-shadow: none; }
+/* Sized to its own content, but never narrower than the shell: wide
+   ERP tables scroll inside .table-wrap instead of crushing their
+   columns (which turned names, badges and action clusters into
+   multi-line wrecks at the app's 1024px minimum). At normal desktop
+   widths max-content is smaller than the shell, so 100% wins and
+   nothing changes. */
+.table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.table th {
+  background: var(--bg-inset); font-weight: 700; text-align: right; padding: 11px var(--sp-3);
+  border-bottom: 1px solid var(--border-default); white-space: nowrap;
+  color: var(--text-secondary); font-size: var(--fs-label); letter-spacing: .02em;
+}
+.table td { padding: 10px var(--sp-3); border-bottom: 1px solid var(--border-default); vertical-align: middle; }
+/* A single long free-text cell must not stretch the whole table — it
+   wraps past this instead. */
+.table td { max-width: 340px; }
+/* An action cluster is one unit: it never breaks onto a second line. */
+.table .row-actions { flex-wrap: nowrap; }
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr { transition: background .12s; }
+.table tbody tr:hover { background: var(--hover-soft); }
+.table .numeric { text-align: left; direction: ltr; white-space: nowrap; }
+.table tr.clickable { cursor: pointer; }
+.state { padding: var(--sp-7); text-align: center; color: var(--text-muted); font-size: 13px; }
+
+/* ---------- Badges & stats ---------- */
+/* A status pill is a single token — it never breaks across lines. */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 700; line-height: 1.6; white-space: nowrap; }
+.badge--neutral { background: var(--hover-strong); color: var(--text-secondary); }
+.badge--success { background: var(--tint-success); color: var(--color-success); }
+.badge--warning { background: var(--tint-warning); color: var(--color-warning); }
+.badge--danger { background: var(--tint-danger); color: var(--color-danger); }
+.badge--info { background: var(--tint-info); color: var(--color-info); }
+
+/* KPI card — the reference's signature block: a soft icon container,
+   then the number as the loudest element, then a quiet label. Cards
+   that pass no icon simply start at the value. */
+.stat {
+  background: var(--bg-card); border: 1px solid var(--border-default); border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-4) 15px; box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; min-width: 0;
+  transition: box-shadow .18s, transform .18s;
+}
+.stat:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.stat__icon {
+  width: 42px; height: 42px; border-radius: var(--r-lg); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-brand); color: var(--color-brand-700); margin-bottom: var(--sp-3);
+}
+.stat__label { font-size: var(--fs-label); color: var(--text-secondary); font-weight: 600; }
+.stat__value { font-size: var(--fs-stat); font-weight: 700; line-height: 1.3; letter-spacing: -0.02em; }
+.stat__hint { font-size: var(--fs-xs); color: var(--text-muted); margin-top: var(--sp-1); }
+.stat--success .stat__value { color: var(--color-success); }
+.stat--success .stat__icon { background: var(--tint-success); color: var(--color-success); }
+.stat--danger .stat__value { color: var(--color-danger); }
+.stat--danger .stat__icon { background: var(--tint-danger); color: var(--color-danger); }
+.stat--brand .stat__value { color: var(--color-brand-700); }
+:root[data-theme='dark'] .stat--brand .stat__value { color: var(--color-brand-300); }
+:root[data-theme='dark'] .stat__icon { color: var(--color-brand-300); }
+
+/* Dashboard KPI rows share the page's vertical rhythm rather than
+   carrying their own inline margins. */
+.dash-kpis { margin-bottom: var(--sp-4); }
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(33,30,27,.45); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: var(--sp-5); z-index: 50;
+}
+.modal {
+  background: var(--bg-elevated); border-radius: var(--r-xl); width: 560px; max-width: 100%;
+  max-height: 90vh; display: flex; flex-direction: column; box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-default);
+}
+.modal--wide { width: 940px; }
+.modal__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border-default);
+}
+.modal__head h2 { font-size: 15px; }
+.modal__close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: var(--r-sm);
+  background: none; border: none; font-size: 21px; cursor: pointer;
+  color: var(--text-secondary); line-height: 1; transition: background .14s, color .14s;
+}
+.modal__close:hover { background: var(--hover-strong); color: var(--text-primary); }
+.modal__body { padding: var(--sp-5); overflow-y: auto; }
+.modal__foot { display: flex; justify-content: flex-start; gap: var(--sp-2); padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--border-default); }
+
+/* ---------- Profile photo crop/position editor ---------- */
+.crop-dialog { display: flex; flex-direction: column; gap: var(--sp-4); }
+/* react-easy-crop needs an explicit-size positioned container — this
+   IS the "large circular preview" (item "CIRCULAR PREVIEW"); the
+   library itself dims everything outside the round crop area. */
+.crop-dialog__stage {
+  position: relative; width: 100%; height: 320px;
+  background: var(--bg-app); border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--border-default);
+}
+.crop-dialog__zoom { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--text-secondary); }
+.crop-dialog__zoom input[type='range'] { flex: 1; accent-color: var(--color-brand-600); }
+
+/* ---------- Toasts ---------- */
+.toasts { position: fixed; bottom: 18px; left: 18px; display: flex; flex-direction: column; gap: var(--sp-2); z-index: 100; }
+.toast { padding: 10px var(--sp-4); border-radius: var(--r-md); font-size: var(--fs-sm); font-weight: 600; box-shadow: var(--shadow-lg); max-width: 380px; }
+.toast--success { background: var(--color-success); color: #fff; }
+.toast--error { background: var(--color-danger); color: #fff; }
+.toast--info { background: var(--color-brand-700); color: #fff; }
+
+/* Inline notices — the accent rule sits on the reading-start edge
+   (right in RTL) via a logical property. */
+.error-note {
+  background: var(--tint-danger); border-inline-start: 3px solid var(--color-danger);
+  color: var(--color-danger); padding: 10px var(--sp-3); border-radius: var(--r-sm); font-size: var(--fs-sm); margin-bottom: var(--sp-3);
+}
+.notice-ok {
+  background: var(--tint-success); border-inline-start: 3px solid var(--color-success);
+  padding: 10px var(--sp-3); border-radius: var(--r-sm); font-size: var(--fs-sm); margin-bottom: var(--sp-3);
+}
+
+/* ---------- Auth ---------- */
+.auth-layout { display: flex; align-items: center; justify-content: center; height: 100%; background: var(--bg-canvas); }
+/* Fixed to the viewport, not the card — sits in a clean outer corner
+   regardless of window size and can never overlap the centered card. */
+.auth-theme-toggle { position: fixed; top: var(--sp-5); left: var(--sp-5); }
+/* The login form sits directly on the canvas gradient: no surface,
+   no border, no elevation. This is still the <form> element, so its
+   geometry (width, max-width, padding) is kept exactly as it was —
+   only the card chrome is gone. */
+.auth-card {
+  width: 380px; max-width: 92vw; background: transparent; border: none;
+  border-radius: 0; padding: var(--sp-7) var(--sp-6); box-shadow: none;
+}
+/* Rounds only the logo's own white background/image area — the logo
+   asset itself, its size and position are untouched. border-radius on
+   an <img> already clips its rendered content (including the baked-in
+   white background) to the rounded box; overflow:hidden is added too
+   so the same rule stays correct if this ever wraps a container. */
+.auth-logo { display: block; width: 128px; margin: 0 auto var(--sp-2); border-radius: var(--r-md); overflow: hidden; }
+.auth-title { text-align: center; font-size: 17px; margin-bottom: 2px; }
+.auth-sub { text-align: center; color: var(--text-secondary); font-size: var(--fs-sm); margin: 0 0 var(--sp-5); }
+
+.muted { color: var(--text-muted); }
+.row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* A table row can carry both icon actions and short text actions
+   ("تعديل", "كشف الحساب", "الصلاحيات" — ones with no unambiguous
+   glyph). Those text actions get the same height, radius and hover
+   language as the icon buttons beside them, plus a barely-there
+   resting surface so they read as controls rather than loose text.
+   Only small ghost buttons are affected: primary/destructive keep
+   their own semantics, and full-size form buttons are untouched. */
+.row-actions .btn--ghost.btn--sm {
+  min-height: 30px; padding: 4px var(--sp-3); border-radius: var(--r-sm);
+  background: var(--bg-inset); border-color: var(--border-default);
+  color: var(--text-secondary); font-weight: 600;
+}
+.row-actions .btn--ghost.btn--sm:hover { background: var(--hover-strong); color: var(--text-primary); }
+
+/* Segmented control — the app's tab pattern (order production setup,
+   product configuration). The active tab keeps driving off the same
+   `secondary`/`ghost` variant the pages already pass; here it simply
+   reads as a raised pill inside a recessed track. */
+.tabs {
+  display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap;
+  padding: var(--sp-1); border-radius: var(--r-md);
+  background: var(--bg-inset); border: 1px solid var(--border-default);
+}
+.tabs .btn { min-height: 30px; border-radius: var(--r-sm); border-color: transparent; box-shadow: none; }
+.tabs .btn:active { transform: none; }
+.tabs .btn--ghost { background: transparent; color: var(--text-secondary); }
+.tabs .btn--ghost:hover { background: var(--hover-soft); color: var(--text-primary); }
+/* The selected tab — lifted onto the card surface. */
+.tabs .btn--secondary { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-xs); }
+.tabs .btn--secondary:hover { background: var(--bg-card); }
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--sp-1) var(--sp-4); }
+.perm-item { display: flex; align-items: center; gap: 6px; min-height: 34px; font-size: 12px; }
+.permission-sections { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
+.permission-section { border: 1px solid var(--border-default); border-radius: var(--r-md); overflow: hidden; background: var(--bg-card); }
+.permission-section__header {
+  width: 100%; min-height: 42px; padding: var(--sp-2) var(--sp-3); border: 0; background: transparent;
+  color: var(--text-primary); display: flex; align-items: center; gap: var(--sp-2); text-align: start;
+  font: inherit; font-weight: 700; cursor: pointer;
+}
+.permission-section__header:hover { background: var(--hover-soft); }
+.permission-section__header > :first-child { flex: 1; }
+.permission-section__header svg { color: var(--text-muted); transition: transform .18s; }
+.permission-section--open .permission-section__header svg { transform: rotate(180deg); }
+.permission-section__count { color: var(--text-muted); font-size: 11px; font-weight: 600; }
+.permission-section__body { padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--border-default); background: var(--bg-inset); }
+.permission-section__controls { display: flex; justify-content: flex-end; gap: var(--sp-1); margin-bottom: var(--sp-2); }
+.checkbox-row { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
+.checkbox-row input { width: auto; accent-color: var(--color-brand-600); }
+
+/* A soft grouped well for repeated sub-forms (invoice/BOM line
+   editors) — replaces the ad-hoc bordered boxes those pages used. */
+.subform-row {
+  border: 1px solid var(--border-default); border-radius: var(--r-md);
+  background: var(--bg-inset); padding: var(--sp-3); margin-bottom: var(--sp-2);
+}
+
+/* Progressive-disclosure form sections (generic material master). */
+.form-section-title {
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  margin: var(--sp-5) 0 var(--sp-2); padding-top: var(--sp-3); border-top: 1px solid var(--border-default);
+}
+.form-section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+/* Invoice item catalog selections — wrap within each existing field. */
+.invoice-item-selections { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.invoice-item-selection { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 7px; border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--bg-inset); color: var(--text-primary); font-size: var(--fs-xs); }
+.invoice-item-selection > span { min-width: 0; overflow-wrap: anywhere; }
+.invoice-item-selection > button { display: inline-flex; flex-shrink: 0; border: 0; padding: 2px; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--r-sm); }
+.invoice-item-selection > button:hover { color: var(--text-primary); background: var(--bg-card); }
+.invoice-item-selection > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* Color selections are contained by their owning invoice material. */
+.invoice-material-color-field { grid-column: span 2; min-width: 0; }
+.invoice-material-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 8px; min-width: 0; }
+.invoice-material-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 8px; background: var(--bg-inset); }
+.invoice-material-group__name { font-weight: 600; font-size: var(--fs-label); overflow-wrap: anywhere; }
+.invoice-unmapped-colors { display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 640px) { .invoice-material-color-field { grid-column: 1 / -1; } }

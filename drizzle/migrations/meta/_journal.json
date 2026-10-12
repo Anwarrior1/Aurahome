@@ -1,0 +1,377 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788489356111,
+      "tag": "0000_overconfident_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788632761265,
+      "tag": "0001_big_lyja",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788719000000,
+      "tag": "0002_planned_materials",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788800000000,
+      "tag": "0003_generic_materials",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788886400000,
+      "tag": "0004_medical_centennial",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788972800000,
+      "tag": "0005_salary_payment_children",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789059200000,
+      "tag": "0006_planned_machines_worksheet",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789145600000,
+      "tag": "0007_recurring_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789232000000,
+      "tag": "0008_product_machine_commission_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789318400000,
+      "tag": "0009_approved_invoice_starts_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789404800000,
+      "tag": "0010_final_invoice_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1789491200000,
+      "tag": "0011_product_bom_line_price",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1789577600000,
+      "tag": "0012_users_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1789664000000,
+      "tag": "0013_users_role_id_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1789750400000,
+      "tag": "0014_remember_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789836800000,
+      "tag": "0015_notification_reads",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1789923200000,
+      "tag": "0016_user_avatar",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790009600000,
+      "tag": "0017_great_tomorrow_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790096000000,
+      "tag": "0018_special_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790182400000,
+      "tag": "0019_invoice_charges_print_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790268800000,
+      "tag": "0020_sweet_carnage",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790355200000,
+      "tag": "0021_condemned_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1790441600000,
+      "tag": "0022_quick_raza",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1790528000000,
+      "tag": "0023_dark_tyrannus",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1790614400000,
+      "tag": "0024_fast_madame_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1790700800000,
+      "tag": "0025_mushy_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1790787200000,
+      "tag": "0026_smiling_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1790873600000,
+      "tag": "0027_noisy_the_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1790960000000,
+      "tag": "0028_normalized_rbac",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1791046400000,
+      "tag": "0029_color_material_reference",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1791132800000,
+      "tag": "0030_invoice_item_selections",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1791219200000,
+      "tag": "0031_material_color_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791305600000,
+      "tag": "0032_approved_invoice_initial_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1791392000000,
+      "tag": "0033_customer_archive_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1791478400000,
+      "tag": "0034_payroll_payment_reversal",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1791564800000,
+      "tag": "0035_payroll_history_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1791651200000,
+      "tag": "0036_material_classification_leaf",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1791737600000,
+      "tag": "0037_reversible_order_steps",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1791824000000,
+      "tag": "0038_uncollected_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1791910400000,
+      "tag": "0039_chief_lord_hawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1791996800000,
+      "tag": "0040_uncollected_order_resume",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1792083200000,
+      "tag": "0041_bizarre_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1792169600000,
+      "tag": "0042_omniscient_night_thrasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1792256000000,
+      "tag": "0043_db05_financial_command_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792342400000,
+      "tag": "0044_db06_expense_integer_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1792428800000,
+      "tag": "0045_db10_delivery_release_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1792515200000,
+      "tag": "0046_db13_cash_mirror_ref_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792601600000,
+      "tag": "0047_db16_cash_balance_covering_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1792688000000,
+      "tag": "0048_db17_remove_redundant_invoice_terms_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1792774400000,
+      "tag": "0049_db06_repository_integer_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792860800000,
+      "tag": "0050_cc03_username_unique_among_live_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1792947200000,
+      "tag": "0051_cc04_worker_commission_assignment_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1793033600000,
+      "tag": "0052_bl03_uncollected_resale_preparation_cost",
+      "breakpoints": true
+    }
+  ]
+}

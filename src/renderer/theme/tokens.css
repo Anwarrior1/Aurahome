@@ -1,0 +1,228 @@
+/**
+ * Design tokens derived from logo/logo.jpeg (Step 2 §11 — approved
+ * branding direction). src/main/reports/templates reuses this same
+ * palette for printed documents so the UI and paper output never
+ * diverge. Every text/background pairing below was contrast-checked
+ * to WCAG AA (4.5:1+) during Step 2.
+ *
+ * Soft UI pass: the brand ramp, status colours and every semantic
+ * name below are unchanged — what was ADDED is the shared scale
+ * layer (space / radius / shadow / tint / type) that the whole
+ * interface now composes from, so surfaces, depth and rhythm stay
+ * consistent instead of each component inventing its own values.
+ */
+:root {
+  color-scheme: light;
+
+  /* Brand ramp — hue ~27°, taken from the logo's measured taupe #94877C */
+  --color-brand-50: #faf8f6;
+  --color-brand-100: #f2ede8;
+  --color-brand-200: #e5dbd1;
+  --color-brand-300: #d0c2b4;
+  --color-brand-400: #b5a392;
+  --color-brand-500: #94877c;
+  --color-brand-600: #7e7166;
+  --color-brand-700: #6b5d51;
+  --color-brand-800: #4e443b;
+  --color-brand-900: #332c26;
+
+  /* Neutrals — warm grey harmonized to the brand hue */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8f6f4;
+  --color-neutral-100: #f1eeeb;
+  --color-neutral-200: #e4dfda;
+  --color-neutral-300: #d2cbc4;
+  --color-neutral-500: #78706a;
+  --color-neutral-600: #6b625b;
+  --color-neutral-700: #4f4842;
+  --color-neutral-900: #211e1b;
+
+  /* Status */
+  --color-accent: #5f7259;
+  --color-success: #2f7d5d;
+  --color-warning: #8a5a12;
+  --color-danger: #b3453c;
+  --color-info: #3d6b8f;
+
+  /* ---------- Spacing scale ----------
+     One rhythm for page padding, card gaps, control padding and
+     icon/text gaps, so nothing needs a one-off margin. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+
+  /* ---------- Radius scale ----------
+     Deliberately a hierarchy, not one value everywhere: the smaller
+     the control, the tighter its corner. */
+  --r-xs: 7px;    /* chips, tiny toggles */
+  --r-sm: 10px;   /* icon buttons, small controls */
+  --r-md: 12px;   /* buttons, inputs, selects */
+  --r-lg: 16px;   /* cards, dropdowns, table shells */
+  --r-xl: 20px;   /* modals, large panels */
+  --r-2xl: 22px;  /* app-shell surfaces (sidebar) */
+  --r-pill: 999px;
+
+  /* ---------- Soft UI depth ----------
+     Warm-tinted, low-contrast and layered (a tight contact shadow
+     plus a wide ambient one) — soft, never the heavy drop shadow
+     that makes neumorphism illegible. */
+  --shadow-xs: 0 1px 2px rgba(74, 60, 48, .05);
+  --shadow-sm: 0 1px 2px rgba(74, 60, 48, .04), 0 4px 14px rgba(74, 60, 48, .05);
+  --shadow-md: 0 2px 4px rgba(74, 60, 48, .05), 0 8px 24px rgba(74, 60, 48, .07);
+  --shadow-lg: 0 4px 10px rgba(74, 60, 48, .07), 0 16px 40px rgba(74, 60, 48, .12);
+  --shadow-xl: 0 8px 20px rgba(74, 60, 48, .10), 0 28px 64px rgba(74, 60, 48, .18);
+  /* The dark floating shell surfaces (sidebar / headbar). */
+  --shadow-shell: 0 6px 20px rgba(41, 33, 27, .18);
+  /* Pressed/inset wells — search fields, chart backdrops. */
+  --shadow-inset: inset 0 1px 2px rgba(74, 60, 48, .06);
+
+  /* ---------- Type scale ---------- */
+  --fs-page-title: 21px;
+  --fs-section: 14.5px;
+  --fs-stat: 24px;
+  --fs-body: 13.5px;
+  --fs-sm: 12.5px;
+  --fs-label: 11.5px;
+  --fs-xs: 11px;
+
+  /* Semantic surface/text tokens — components consume these, never the raw ramp */
+  --bg-app: #f2efeb;
+  /* The full-page canvas gradient. Single source of truth: both the
+     authenticated shell (.app-shell) and the pre-auth screens
+     (.auth-layout) consume this, so the login page and the app share
+     one background rather than keeping copies in sync. The ramp is
+     weighted for what is actually seen — the floating headbar covers
+     roughly the top 9% of the shell, so the deepest stop sits above
+     the fold and its tail lands at the visible top. */
+  --bg-canvas: linear-gradient(
+    180deg,
+    #dccdb9 0%,
+    #e9dfd0 30%,
+    #f3ede3 60%,
+    #faf7f2 82%,
+    #fdfcfa 100%
+  );
+  --bg-card: var(--color-neutral-0);
+  /* A recessed surface on top of a card: table heads, wells, inputs. */
+  --bg-inset: #f7f5f2;
+  /* Popovers/modals sit above cards and use the same white here, but
+     the token exists so dark mode can lift them a step. */
+  --bg-elevated: var(--color-neutral-0);
+  --bg-sidebar: #2a2522;
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: var(--color-neutral-600);
+  --text-muted: #78706a;
+  --text-inverse: var(--color-neutral-50);
+  --text-sidebar: #ede8e3;
+  --text-sidebar-muted: #b5a392;
+  --border-default: #ebe6e0;
+  --border-strong: var(--color-neutral-300);
+  --btn-primary-bg: var(--color-brand-700);
+  --btn-primary-hover: var(--color-brand-800);
+  --btn-primary-text: #ffffff;
+  --focus-ring: var(--color-brand-500);
+
+  /* ---------- Icon-container tints ----------
+     Soft accent grounds for the small rounded icon containers, one
+     per semantic meaning. Kept as tints (not solid fills) so the
+     glyph itself stays the semantic colour and legible in both
+     themes. */
+  --tint-brand: rgba(148, 135, 124, .18);
+  --tint-success: rgba(47, 125, 93, .13);
+  --tint-warning: rgba(138, 90, 18, .13);
+  --tint-danger: rgba(179, 69, 60, .12);
+  --tint-info: rgba(61, 107, 143, .13);
+
+  /* Hover washes for rows/menu items, tuned per theme. */
+  --hover-soft: rgba(148, 135, 124, .09);
+  --hover-strong: rgba(148, 135, 124, .15);
+  /* Translucent chrome tints used on the dark headbar/sidebar. */
+  --chrome-soft: rgba(255, 255, 255, .10);
+  --chrome-strong: rgba(255, 255, 255, .17);
+
+  /* Global headbar (item 10): light mode uses the same dark espresso
+     tone already proven on the sidebar — a genuinely "dark headbar"
+     without inventing a new color. */
+  --bg-headbar: var(--bg-sidebar);
+  --text-headbar: var(--text-sidebar);
+  --text-headbar-muted: var(--text-sidebar-muted);
+}
+
+/* AD-4: light is the default; dark activates only when the app sets
+   data-theme="dark" via ThemeProvider — never from the OS preference
+   alone, so the choice always matches the user's saved setting.
+   Dark is designed as its own surface set (app < card < elevated),
+   not an inversion of light: depth comes from real steps between
+   those surfaces plus a hairline top border, because shadows alone
+   barely read on a dark ground. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-app: #151310;
+  /* Dark canvas in its own register: warm dark taupe → warm charcoal
+     → deep espresso → warm near-black, evenly spaced so the depth is
+     obvious at normal viewing distance while staying smooth. The
+     light end is deliberately well above --bg-card (#201d19): the
+     cards therefore read as darker insets against the upper canvas
+     rather than raised surfaces, which is the intended lighter look.
+     Same token drives the authenticated shell and the login screen. */
+  --bg-canvas: linear-gradient(
+    180deg,
+    #3b3530 0%,
+    #302b27 36%,
+    #25211e 70%,
+    #1d1a18 100%
+  );
+  --bg-card: #201d19;
+  --bg-inset: #1a1714;
+  --bg-elevated: #272320;
+  --bg-sidebar: #131110;
+  --text-primary: #f2eee9;
+  --text-secondary: #b8afa6;
+  --text-muted: #9a9089;
+  --text-inverse: #1a1714;
+  --border-default: #332e28;
+  --border-strong: #443d35;
+  --btn-primary-bg: var(--color-brand-400);
+  /* Dark mode brightens on hover instead of darkening — the light
+     mode direction would make the button recede into the page. */
+  --btn-primary-hover: var(--color-brand-300);
+  --btn-primary-text: #1a1714;
+  --color-success: #4fa47d;
+  --color-warning: #e0a44a;
+  --color-danger: #e0736a;
+  --color-info: #6fa3c9;
+  --color-accent: #93a88c;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .30);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .28), 0 4px 14px rgba(0, 0, 0, .26);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, .30), 0 8px 24px rgba(0, 0, 0, .34);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, .34), 0 16px 40px rgba(0, 0, 0, .44);
+  --shadow-xl: 0 8px 20px rgba(0, 0, 0, .40), 0 28px 64px rgba(0, 0, 0, .55);
+  --shadow-shell: 0 6px 22px rgba(0, 0, 0, .45);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, .28);
+
+  --tint-brand: rgba(181, 163, 146, .18);
+  --tint-success: rgba(79, 164, 125, .18);
+  --tint-warning: rgba(224, 164, 74, .18);
+  --tint-danger: rgba(224, 115, 106, .17);
+  --tint-info: rgba(111, 163, 201, .18);
+
+  --hover-soft: rgba(181, 163, 146, .08);
+  --hover-strong: rgba(181, 163, 146, .14);
+  --chrome-soft: rgba(0, 0, 0, .10);
+  --chrome-strong: rgba(0, 0, 0, .18);
+
+  /* Dark mode: the headbar must be LIGHTER than the app background,
+     contrasting the other direction from light mode. Reuses the same
+     brand-400 / inverse-text pair already proven on dark-mode primary
+     buttons — no new color introduced. */
+  --bg-headbar: var(--color-brand-400);
+  --text-headbar: var(--text-inverse);
+  --text-headbar-muted: var(--color-brand-900);
+}

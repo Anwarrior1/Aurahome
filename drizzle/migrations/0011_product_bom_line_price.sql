@@ -1,0 +1,1 @@
+ALTER TABLE `product_bom_lines` ADD `unit_price_micro` integer;

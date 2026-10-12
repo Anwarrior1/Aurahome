@@ -240,7 +240,9 @@ describe('development business-data reset', () => {
 
   it('the npm entrypoint cannot override production mode', () => {
     closeDatabase()
-    const result = spawnSync('npm', ['run', 'reset:business-data', '--', '--database', databasePath,
+    const npmCli = process.env.npm_execpath
+    if (!npmCli) throw new Error('npm CLI path is required to test the npm entrypoint')
+    const result = spawnSync(process.execPath, [npmCli, 'run', 'reset:business-data', '--', '--database', databasePath,
       '--confirm', 'RESET-DEVELOPMENT-BUSINESS-DATA'], {
       encoding: 'utf8', env: { ...process.env, NODE_ENV: 'production' }
     })

@@ -57,15 +57,15 @@ function signInWith(permissions: string[]): void {
 /** A real transferred product, created by the real cancellation. */
 function seedProduct(): number {
   const categoryId = createCategory({ name: 'أخشاب' }, env.ctx)
+  const colorId = createColor({ code: '205', name: 'بني' }, env.ctx)
   const materialId = createMaterial(
-    { sku: 'MDF', name: 'لوح', categoryId, unit: 'لوح', currentMarketPriceMicro: unitCostFromMajor(150), pricingRule: 'exact' } as never,
+    { sku: 'MDF', name: 'لوح', categoryId, colorId, unit: 'لوح', currentMarketPriceMicro: unitCostFromMajor(150), pricingRule: 'exact' } as never,
     env.ctx
   )
   createPurchase(
     { supplierId: createSupplier({ name: 'مورد' }, env.ctx), lines: [{ materialId, qtyMicro: q(100), unitCostMicro: unitCostFromMajor(100) }] },
     env.ctx
   )
-  createColor({ code: '205', name: 'بني', relatedMaterialId: materialId }, env.ctx)
   const customerId = createCustomer({ name: 'عميل' }, env.ctx)
   const invoice = createFinalInvoice(
     { customerId, depositPercentBp: 0, lines: [{ lineKind: 'custom', description: 'خزانة', quantityMicro: q(1), unitPriceMinor: m(6000) }] },

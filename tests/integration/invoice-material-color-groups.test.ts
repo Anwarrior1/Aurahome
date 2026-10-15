@@ -24,17 +24,18 @@ const LINE = { lineKind: 'custom' as const, description: 'مطبخ', specificati
 function seed() {
   const root = createCategory({ name: 'مواد' }, env.ctx)
   const accessoryRoot = createCategory({ name: 'إكسسوارات', isAccessory: true }, env.ctx)
-  const material = (sku: string, name: string, categoryId = root) => createMaterial({ sku, name, categoryId, unit: 'قطعة', pricingRule: 'exact' }, env.ctx)
-  const contour = material('CONTOUR', 'Contour 18')
-  const mdf = material('MDF', 'MDF 16')
+  const material = (sku: string, name: string, categoryId = root, colorId?: number) => createMaterial({ sku, name, categoryId, colorId, unit: 'قطعة', pricingRule: 'exact' }, env.ctx)
+  const red = createColor({ code: '405', name: 'RED' }, env.ctx)
+  const contour = material('CONTOUR', 'Contour 18', root, red)
+  const grey = createColor({ code: 'DEMO-G', name: 'رمادي تجريبي' }, env.ctx)
+  const mdf = material('MDF', 'MDF 16', root, grey)
   const hdf = material('HDF', 'HDF')
-  const red = createColor({ code: '405', name: 'RED', relatedMaterialId: contour }, env.ctx)
-  const walnut = createColor({ code: '410', name: 'Walnut', relatedMaterialId: contour }, env.ctx)
-  const grey = createColor({ code: 'DEMO-G', name: 'رمادي تجريبي', relatedMaterialId: mdf }, env.ctx)
+  const walnut = createColor({ code: '410', name: 'Walnut' }, env.ctx)
+  const walnutMaterial = material('WALNUT', 'Walnut board', root, walnut)
   const accessory = material('HANDLE', 'مقبض', accessoryRoot)
-  const materials = [contour, mdf, hdf]
-  const groups = [{ materialId: contour, colorIds: [red, walnut] }, { materialId: mdf, colorIds: [grey] }, { materialId: hdf, colorIds: [] }]
-  return { customerId: createCustomer({ name: 'عميل' }, env.ctx), contour, mdf, hdf, red, walnut, grey, accessory, materials, groups }
+  const materials = [contour, mdf, hdf, walnutMaterial]
+  const groups = [{ materialId: contour, colorIds: [red] }, { materialId: mdf, colorIds: [grey] }, { materialId: hdf, colorIds: [] }, { materialId: walnutMaterial, colorIds: [walnut] }]
+  return { customerId: createCustomer({ name: 'عميل' }, env.ctx), contour, mdf, hdf, walnutMaterial, red, walnut, grey, accessory, materials, groups }
 }
 function integrity() {
   expect(getRawConnection().pragma('foreign_key_check')).toEqual([])
@@ -48,7 +49,7 @@ describe.each(['preliminary', 'approved'] as const)('%s Material → Colors', ki
   const dto = (id: number) => kind === 'preliminary' ? buildPreliminaryInvoice(id) : buildFinalInvoice(id)
   const render = (id: number) => kind === 'preliminary' ? renderPreliminaryInvoice(dto(id), { name: 'AURA' }) : renderFinalInvoice(dto(id), { name: 'AURA' })
 
-  it('persists multiple colors per material, a material with no colors, independent items, and grouped PDF wording', () => {
+  it('persists one color per material, a material with no colors, independent items, and grouped PDF wording', () => {
     const s = seed()
     const id = create({ customerId: s.customerId, printVisibility: { accessories: true }, lines: [
       { ...LINE, materialIds: s.materials, materialColors: s.groups, accessoryIds: [s.accessory] },
@@ -56,12 +57,13 @@ describe.each(['preliminary', 'approved'] as const)('%s Material → Colors', ki
     ] }, env.ctx).id
     closeDatabase()
     const lines = get(id).lines
-    expect(lines[0]!.selectedMaterials.map(m => [m.materialId, (m.colors ?? []).map(c => c.colorId)])).toEqual([[s.contour, [s.red, s.walnut]], [s.mdf, [s.grey]], [s.hdf, []]])
+    expect(lines[0]!.selectedMaterials.map(m => [m.materialId, (m.colors ?? []).map(c => c.colorId)])).toEqual([[s.contour, [s.red]], [s.mdf, [s.grey]], [s.hdf, []], [s.walnutMaterial, [s.walnut]]])
     expect(lines[1]!.selectedMaterials.map(m => [m.materialId, (m.colors ?? []).map(c => c.colorId)])).toEqual([[s.mdf, [s.grey]]])
     expect(lines[0]!.selectedAccessories).toEqual([{ materialId: s.accessory, name: 'مقبض' }])
-    expect(dto(id).lines[0]!.materialGroups).toEqual([{ material: 'Contour 18', colors: '405 — RED، 410 — Walnut' }, { material: 'MDF 16', colors: 'DEMO-G — رمادي تجريبي' }, { material: 'HDF', colors: undefined }])
+    expect(dto(id).lines[0]!.materialGroups).toEqual([{ material: 'Contour 18', colors: '405 — RED' }, { material: 'MDF 16', colors: 'DEMO-G — رمادي تجريبي' }, { material: 'HDF', colors: undefined }, { material: 'Walnut board', colors: '410 — Walnut' }])
     const html = render(id)
-    expect(html).toContain('المادة: Contour 18</div><div class="spec">اللون/التشطيب: 405 — RED، 410 — Walnut')
+    expect(html).toContain('المادة: Contour 18</div><div class="spec">اللون/التشطيب: 405 — RED')
+    expect(html).toContain('المادة: Walnut board</div><div class="spec">اللون/التشطيب: 410 — Walnut')
     expect(html).toContain('المادة: MDF 16</div><div class="spec">اللون/التشطيب: DEMO-G — رمادي تجريبي')
     expect(html).toContain('المادة: HDF</div></div>')
     expect(html).not.toContain('نوع المادة: Contour 18، MDF 16')
@@ -124,7 +126,7 @@ describe.each(['preliminary', 'approved'] as const)('%s Material → Colors', ki
     const id = create({ customerId: s.customerId, lines: [{ ...LINE, materialIds: s.materials, materialColors: s.groups }] }, env.ctx).id
     if (kind === 'approved') approveFinalInvoice(id, env.ctx)
     const before = dto(id).lines[0]!.materialGroups
-    updateColor(s.red, { code: '405-NEW', name: 'RED NEW', relatedMaterialId: s.mdf }, env.ctx)
+    updateColor(s.red, { code: '405-NEW', name: 'RED NEW' }, env.ctx)
     updateMaterial(s.contour, { name: 'Contour renamed' }, env.ctx)
     closeDatabase()
     expect(dto(id).lines[0]!.materialGroups).toEqual(before)
@@ -202,14 +204,14 @@ it('restores an old flat 0030 frozen snapshot only from exact matching migrated 
   const snapshot = getFinalInvoice(id).snapshot
   snapshot.lines[0]!.selectedMaterials = snapshot.lines[0]!.selectedMaterials!.map(({ materialId, name }) => ({ materialId, name }))
   getRawConnection().prepare('UPDATE final_invoices SET snapshot = ? WHERE id = ?').run(JSON.stringify(snapshot), id)
-  expect(getFinalInvoice(id).snapshot.lines[0]!.selectedMaterials![0]!.colors).toHaveLength(2)
+  expect(getFinalInvoice(id).snapshot.lines[0]!.selectedMaterials![0]!.colors).toHaveLength(1)
   updateColor(s.red, { name: 'New name' }, env.ctx)
-  expect(buildFinalInvoice(id).lines[0]!.materialGroups![0]!.colors).toBe('405 — RED، 410 — Walnut')
+  expect(buildFinalInvoice(id).lines[0]!.materialGroups![0]!.colors).toBe('405 — RED')
   snapshot.lines[0]!.selectedMaterials![0]!.name = 'Different historical material snapshot'
   getRawConnection().prepare('UPDATE final_invoices SET snapshot = ? WHERE id = ?').run(JSON.stringify(snapshot), id)
   const document = buildFinalInvoice(id)
   expect(document.lines[0]!.materialGroups![0]!.colors).toBeUndefined()
-  expect(document.lines[0]!.unmappedColors).toBe('405 — RED، 410 — Walnut')
+  expect(document.lines[0]!.unmappedColors).toBe('405 — RED')
   integrity()
 })
 

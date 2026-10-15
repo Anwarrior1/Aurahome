@@ -4,8 +4,8 @@ import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
 /**
  * BR-66/BR-67: a user-created recursive category tree with explicit
- * semantics. The standard four levels are generic rows, never names such
- * as Wood/MDF hard-coded into the schema; deeper legacy rows remain readable.
+ * semantics. The initial levels are generic rows, never names such
+ * as Wood/MDF hard-coded into the schema; material types may nest further.
  */
 export const materialCategories = sqliteTable(
   'material_categories',
@@ -36,6 +36,7 @@ export const materialCategories = sqliteTable(
      * workflow no longer exposes or assigns this marker, but existing rows
      * must retain it so old invoice behavior does not change. */
     isAccessory: integer('is_accessory', { mode: 'boolean' }).notNull().default(false),
+    showInRawMaterials: integer('show_in_raw_materials', { mode: 'boolean' }).notNull().default(false),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`)
   },

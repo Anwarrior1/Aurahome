@@ -404,7 +404,6 @@ const operations: Operation[] = [
     name: 'catalog.createMaterial',
     permission: P.materials.manage,
     channel: C.materials.create,
-    retiredIPC: true,
     prepare: () => {
       const input = materialInput()
       return { request: input, run: (ctx) => catalog.createMaterial(input, ctx) }
@@ -1191,7 +1190,7 @@ describe('additional inventory and configuration preservation', () => {
     expect(inventory.availableQty(f.material)).toBe(q(97))
     expect(reconcileDatabase(db()).findings).toEqual([])
   })
-  it('legacy material-create IPC remains retired; restricted access is forbidden and authorized access cannot mutate', async () => {
+  it('material-create IPC requires permission and records an authorized assignment', async () => {
     const limited = actor([])
     const input = materialInput()
     const before = snapshot()
@@ -1199,10 +1198,9 @@ describe('additional inventory and configuration preservation', () => {
       ok: false,
       error: { code: 'FORBIDDEN' }
     })
-    expect(await call(C.materials.create, input, 1)).toMatchObject({
-      ok: false,
-      error: { code: 'VALIDATION_ERROR' }
-    })
     expect(snapshot()).toEqual(before)
+    const count = auditCount('catalog.material.create')
+    expect(await call(C.materials.create, input, 1)).toMatchObject({ ok: true, data: { id: expect.any(Number) } })
+    expect(auditCount('catalog.material.create')).toBe(count + 1)
   })
 })

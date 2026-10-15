@@ -33,7 +33,7 @@ const plan = (raw: Database.Database) =>
 
 describe('0048 DB-17 redundant final-invoice-terms index removal', () => {
   it('appends one pinned migration and removes the candidate from the current structural contract', () => {
-    expect(CURRENT_MIGRATION_INDEX).toBe(52)
+    expect(CURRENT_MIGRATION_INDEX).toBe(53)
     expect(CANONICAL_MIGRATION_HISTORY[48]).toMatchObject({
       idx: 48,
       tag: '0048_db17_remove_redundant_invoice_terms_index'
@@ -80,7 +80,7 @@ describe('0048 DB-17 redundant final-invoice-terms index removal', () => {
         expect(() => verified.prepare(`INSERT INTO final_invoice_terms
           (final_invoice_id, term_index, term_text, created_at)
           VALUES (1, 1, 'duplicate', '2026-09-16T00:00:00.000Z')`).run()).toThrow(/UNIQUE/)
-        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
         expect(verified.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
         expect(verified.pragma('foreign_key_check')).toEqual([])
       } finally {

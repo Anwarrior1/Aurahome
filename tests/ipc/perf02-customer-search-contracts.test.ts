@@ -167,7 +167,7 @@ describe('PERF-02 unchanged registered search and financial contracts', () => {
       before = snapshot()
     expect(db.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
     expect(db.pragma('foreign_key_check')).toEqual([])
-    expect(db.prepare('SELECT COUNT(*) n FROM __drizzle_migrations').get()).toEqual({ n: 53 })
+    expect(db.prepare('SELECT COUNT(*) n FROM __drizzle_migrations').get()).toEqual({ n: 54 })
     expect(reconcileDatabase(db)).toMatchObject({
       checksRun: 73,
       errorCount: 0,

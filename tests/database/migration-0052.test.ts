@@ -26,7 +26,7 @@ function bundleBefore(dir: string, idx: number): string {
 
 describe('0052 BL-03 resale-preparation expense ↔ Uncollected Product link', () => {
   it('appends one pinned migration after 0051 and requires its index', () => {
-    expect(CURRENT_MIGRATION_INDEX).toBe(52)
+    expect(CURRENT_MIGRATION_INDEX).toBe(53)
     expect(CANONICAL_MIGRATION_HISTORY[52]).toMatchObject({ idx: 52, tag: '0052_bl03_uncollected_resale_preparation_cost' })
     expect(CANONICAL_MIGRATION_HISTORY[51]).toMatchObject({ idx: 51, hash: '9ae8fdec6a5086f3b7b92091e93c4ee95a1e8effbe18e46290e88a94d3315e8f' })
     expect(REQUIRED_APPLICATION_INDEXES).toContain('expenses_uncollected_product_idx')
@@ -63,7 +63,7 @@ describe('0052 BL-03 resale-preparation expense ↔ Uncollected Product link', (
         expect(verified.prepare('SELECT * FROM expenses ORDER BY id').all()).toEqual(before.map((row) => ({ ...row, uncollected_product_id: null })))
         verified.prepare("INSERT INTO expenses (kind, amount_minor, uncollected_product_id, description, spent_at, created_at) VALUES ('variable', 500000, 1, 'repaint', '2026-09-18', '2026-09-18T00:00:00.000Z')").run()
         expect(() => verified.prepare("INSERT INTO expenses (kind, amount_minor, uncollected_product_id, description, spent_at, created_at) VALUES ('variable', 1, 999, 'x', '2026-09-18', '2026-09-18T00:00:00.000Z')").run()).toThrow(/FOREIGN KEY/)
-        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
         expect(verified.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
         expect(verified.pragma('foreign_key_check')).toEqual([])
       } finally {

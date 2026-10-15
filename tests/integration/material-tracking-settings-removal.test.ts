@@ -104,7 +104,7 @@ describe('obsolete Material Tracking Settings removal', () => {
 
     expect(getMaterial(created.materialId)).toMatchObject({
       colorId,
-      name: 'C-01 — أبيض مطفي'
+      name: '18 مم'
     })
     expect((getRawConnection().prepare('SELECT COUNT(*) AS c FROM color_finish_catalog').get() as { c: number }).c)
       .toBe(1)

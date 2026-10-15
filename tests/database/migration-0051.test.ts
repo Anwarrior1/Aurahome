@@ -26,7 +26,7 @@ function bundleBefore(dir: string, idx: number): string {
 
 describe('0051 CC04 worker commission earning ↔ assignment link', () => {
   it('appends one pinned migration and requires the exactly-once earning index', () => {
-    expect(CURRENT_MIGRATION_INDEX).toBe(52)
+    expect(CURRENT_MIGRATION_INDEX).toBe(53)
     expect(CANONICAL_MIGRATION_HISTORY[51]).toMatchObject({ idx: 51, tag: '0051_cc04_worker_commission_assignment_link' })
     expect(CANONICAL_MIGRATION_HISTORY[50]).toMatchObject({
       idx: 50,
@@ -71,7 +71,7 @@ describe('0051 CC04 worker commission earning ↔ assignment link', () => {
         link.run()
         expect(() => link.run()).toThrow(/UNIQUE/)
         expect(() => verified.prepare("INSERT INTO worker_transactions (worker_id, kind, amount_minor, assignment_id, created_at) VALUES (1, 'earning', 1, 999, '2026-09-17T00:00:00.000Z')").run()).toThrow(/FOREIGN KEY/)
-        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
         expect(verified.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
         expect(verified.pragma('foreign_key_check')).toEqual([])
       } finally {

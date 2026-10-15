@@ -76,6 +76,10 @@ describe('deletion channels enforce their permission in main', () => {
     [IPC_CHANNELS.cash.fullDeleteAccountPreview, { id: 1 }, P.cash.fullDelete],
     [IPC_CHANNELS.materials.fullDelete, { id: 1, confirmation: 'اسم' }, P.materials.fullDelete],
     [IPC_CHANNELS.materials.fullDeletePreview, { id: 1 }, P.materials.fullDelete],
+    [IPC_CHANNELS.categories.deletePreview, { id: 1 }, P.materials.manage],
+    [IPC_CHANNELS.categories.remove, { id: 1 }, P.materials.manage],
+    [IPC_CHANNELS.categories.materialDeletePreview, { id: 1 }, P.materials.fullDelete],
+    [IPC_CHANNELS.categories.removeMaterial, { id: 1, confirmation: 'اسم' }, P.materials.fullDelete],
     [IPC_CHANNELS.products.fullDelete, { id: 1, confirmation: 'كود' }, P.products.fullDelete],
     [IPC_CHANNELS.products.fullDeletePreview, { id: 1 }, P.products.fullDelete]
   ])('refuses %s without its permission key', async (channel, payload, permission) => {
@@ -83,7 +87,7 @@ describe('deletion channels enforce their permission in main', () => {
     signInWith([
       P.orders.fullDelete, P.employees.fullDelete, P.quotations.remove,
       P.expenses.manage, P.employees.manage,
-      P.purchases.fullDelete, P.suppliers.fullDelete, P.cash.fullDelete, P.materials.fullDelete,
+      P.purchases.fullDelete, P.suppliers.fullDelete, P.cash.fullDelete, P.materials.fullDelete, P.materials.manage,
       P.products.fullDelete
     ].filter((key) => key !== permission))
 

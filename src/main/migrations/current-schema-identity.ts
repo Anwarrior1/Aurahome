@@ -412,6 +412,7 @@ export const REQUIRED_MIGRATION_TRIGGERS = [
 ] as const
 
 export const REQUIRED_TABLE_SQL_FRAGMENTS: Readonly<Record<string, readonly string[]>> = {
+  material_categories: ['show_in_raw_materials'],
   finished_goods_valuation_cutovers: [
     'finished_goods_valuation_cutovers_status_check',
     'finished_goods_valuation_cutovers_classification_check',

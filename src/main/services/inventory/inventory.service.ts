@@ -3,8 +3,8 @@ import { PERMISSION_KEYS as P } from '@shared/permissions/permission-keys'
 import { and, eq, sql, type SQL } from 'drizzle-orm'
 import { idListText, keysetBoundary, keysetOrder, keysetPage, type KeysetWindow, type PageRequest } from '../base/pagination'
 import { getDatabase } from '../../db/connection'
-import { withTransaction } from '../../db/transactions'
-import { materials } from '../../db/schema/catalog.schema'
+import { withImmediateTransaction, withTransaction } from '../../db/transactions'
+import { materialCategories, materials } from '../../db/schema/catalog.schema'
 import { inventoryMovements, fifoLayers, materialRemainders } from '../../db/schema/inventory.schema'
 import { inventoryRepository } from '../../repositories/inventory/inventory.repository'
 import { AppError, forbidden, insufficientStock, notFound } from '../../utils/errors'
@@ -89,6 +89,17 @@ export function getMaterialOrThrow(materialId: number) {
   return material
 }
 
+function assertVisibleForNewStock(materialId: number): void {
+  const material = getMaterialOrThrow(materialId)
+  const category = material.creationKey
+    ? getDatabase().select().from(materialCategories).where(eq(materialCategories.id, material.categoryId)).get()
+    : undefined
+  if ((!material.active && (material.creationKey?.startsWith('category-visibility:') || material.hierarchyNodeId === material.categoryId)) ||
+      (material.creationKey && material.hierarchyNodeId === null && category?.showInRawMaterials === false)) {
+    throw new AppError('VALIDATION_ERROR', 'هذه المادة مخفية من مواد الخام؛ فعّل ظهور تصنيفها قبل إضافة مخزون')
+  }
+}
+
 export function availableQty(materialId: number): number {
   return inventoryRepository.availableQtyMicro(materialId)
 }
@@ -111,9 +122,10 @@ export function receiveStock(input: {
 }): { layerId: number; movementId: number } {
   if (!input.ctx) throw forbidden()
   requirePermission(input.ctx.session, input.sourceKind === 'purchase' ? P.purchases.manage : P.inventory.adjust)
-  return withTransaction(() => {
+  return withImmediateTransaction(() => {
     requireSafePositiveInteger(input.qtyMicro, 'الكمية')
     requireSafeNonNegativeInteger(input.unitCost, 'تكلفة الوحدة')
+    assertVisibleForNewStock(input.materialId)
     const receivedAt = input.receivedAt ?? nowIso()
     const seq = inventoryRepository.nextSeq(input.materialId)
 
@@ -572,13 +584,15 @@ export function recordRemainder(input: {
   if (!input.ctx) throw forbidden()
   requirePermission(input.ctx.session, P.inventory.consume)
   requireSafePositiveInteger(input.sizeMicro, 'حجم الباقي')
-  getMaterialOrThrow(input.materialId)
-  inventoryRepository.insertRemainder({
-    materialId: input.materialId,
-    layerId: input.layerId ?? null,
-    sizeMicro: input.sizeMicro,
-    sourceNote: input.note ?? null,
-    createdAt: nowIso()
+  withImmediateTransaction(() => {
+    assertVisibleForNewStock(input.materialId)
+    inventoryRepository.insertRemainder({
+      materialId: input.materialId,
+      layerId: input.layerId ?? null,
+      sizeMicro: input.sizeMicro,
+      sourceNote: input.note ?? null,
+      createdAt: nowIso()
+    })
   })
 }
 

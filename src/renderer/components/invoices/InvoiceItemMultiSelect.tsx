@@ -132,9 +132,9 @@ export function InvoiceColorMultiSelect({
   )
 }
 
-export interface MaterialLinkedColorOption extends ColorOption { relatedMaterialId: number | null }
+export interface MaterialLinkedColorOption extends ColorOption { associatedMaterials: Array<{ id: number }> }
 export function colorsForInvoiceMaterial(colors: MaterialLinkedColorOption[], materialId: number): MaterialLinkedColorOption[] {
-  return colors.filter(color => color.relatedMaterialId === materialId)
+  return colors.filter(color => color.associatedMaterials.some(material => material.id === materialId))
 }
 
 /** Selection ids remain keyed by material, so removal/reordering cannot transfer colors. */

@@ -63,11 +63,13 @@ afterEach(() => env.cleanup())
 
 function seed() {
   const categoryId = createCategory({ name: 'أخشاب' }, env.ctx)
+  const colorId = createColor({ code: '205', name: 'بني داكن' }, env.ctx)
   const materialId = createMaterial(
     {
       sku: 'MDF-18',
       name: 'لوح MDF',
       categoryId,
+      colorId,
       unit: 'لوح',
       currentMarketPriceMicro: unitCostFromMajor(150),
       pricingRule: 'exact'
@@ -84,10 +86,6 @@ function seed() {
   )
   // The colour must genuinely belong to the material — the catalogue
   // refuses an unrelated pairing, exactly as it does in the real app.
-  const colorId = createColor(
-    { code: '205', name: 'بني داكن', relatedMaterialId: materialId },
-    env.ctx
-  )
   const customerId = createCustomer({ name: 'عميل تجريبي', phone: '0910000000' }, env.ctx)
   return { materialId, colorId, customerId, categoryId }
 }

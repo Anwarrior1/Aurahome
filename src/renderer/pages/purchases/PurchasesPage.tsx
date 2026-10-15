@@ -33,6 +33,7 @@ interface Material {
   sku: string
   name: string
   unit: string
+  active: boolean
   purchaseUnit: string | null
   purchaseUnitFactorMicro: number | null
 }
@@ -458,7 +459,7 @@ export function PurchasesPage(): ReactElement {
               <div className="grid grid--4" style={{ alignItems: 'end' }}>
                 <Field label="المادة">
                   <SearchableMaterialSelect
-                    materials={materials.data ?? []}
+                    materials={(materials.data ?? []).filter((material) => material.active || String(material.id) === line.materialId)}
                     value={line.materialId}
                     noneLabel="— اختر —"
                     onChange={(materialId) => {

@@ -181,11 +181,11 @@ describe('PERF-03 actual SQLite list read', () => {
     try { expect(await call(1)).toMatchObject({ ok: false, error: { code: 'CONFLICT' } }) } finally { release() }
     expect(hashes()).toStrictEqual(before)
   })
-  it('passes 53 migrations and every one of 73 reconciliations on fresh and valid populated fictional data', () => {
+  it('passes 54 migrations and every one of 73 reconciliations on fresh and valid populated fictional data', () => {
     for (const populated of [false, true]) {
       if (populated) financialFixture()
       const before = hashes()
-      expect(raw().prepare('SELECT COUNT(*) n FROM __drizzle_migrations').get()).toEqual({ n: 53 })
+      expect(raw().prepare('SELECT COUNT(*) n FROM __drizzle_migrations').get()).toEqual({ n: 54 })
       expect(raw().pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
       expect(raw().pragma('foreign_key_check')).toEqual([])
       const report = reconcileDatabase(raw())

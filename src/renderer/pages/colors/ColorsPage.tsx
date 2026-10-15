@@ -5,34 +5,28 @@ import { useToast } from '@renderer/lib/toast'
 import { useSession } from '@renderer/state/session.store'
 import { Badge, Button, Card, DataTable, ErrorNote, Field, Input, Modal, PageHeader, Textarea } from '@renderer/components/ui'
 import { PERMISSION_KEYS as P } from '@shared/permissions/permission-keys'
-import { SearchableMaterialSelect, type MaterialTypeOption } from '@renderer/components/materials/SearchableMaterialSelect'
 import { Pencil, Trash2 } from 'lucide-react'
 
-interface Color { id: number; code: string; name: string; relatedMaterialType: string | null; relatedMaterialId: number | null; notes: string | null; active: boolean }
+interface Color { id: number; code: string; name: string; relatedMaterialId: number | null; relatedMaterialType: string | null; baseMaterialNames: string[]; unresolvedMaterialIds: number[]; legacyAssociationConflict: boolean; notes: string | null; active: boolean }
 
 export function ColorsPage(): ReactElement {
   const { can } = useSession()
   const toast = useToast()
-  const [editing, setEditing] = useState<(Partial<Color> & { materialSelectionChanged?: boolean }) | undefined>()
+  const [editing, setEditing] = useState<Partial<Color> | undefined>()
   const [error, setError] = useState<string>()
   const list = useQuery<Color[]>('colors', 'list', {})
-  const materials = useQuery<MaterialTypeOption[]>('colors', 'materialOptions', { colorId: editing?.id }, {
-    enabled: Boolean(editing) && can(P.colors.manage)
-  })
 
   async function save(): Promise<void> {
     if (!editing?.code?.trim() || !editing?.name?.trim()) { setError('كود واسم اللون مطلوبان'); return }
     try {
       const payload = {
         code: editing.code, name: editing.name,
-        ...(editing.id && !editing.materialSelectionChanged ? {} : {
-          relatedMaterialId: editing.relatedMaterialId ?? null
-        }),
         notes: editing.notes ?? undefined
       }
       if (editing.id) await call('colors', 'update', { id: editing.id, ...payload, active: editing.active })
       else await call('colors', 'create', payload)
       toast.show('تم حفظ اللون', 'success')
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('catalog-changed'))
       setEditing(undefined); setError(undefined)
       await list.reload()
     } catch (err) { setError(err instanceof ApiError ? err.message : 'تعذر الحفظ') }
@@ -43,6 +37,7 @@ export function ColorsPage(): ReactElement {
     try {
       const result = await call<{ deleted: boolean; archived: boolean }>('colors', 'remove', { id: row.id })
       toast.show(result.deleted ? 'تم حذف اللون غير المستخدم' : 'اللون مستخدم تاريخياً، لذلك تم تعطيله بدلاً من حذفه', 'success')
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('catalog-changed'))
       await list.reload()
     } catch (err) {
       toast.show(err instanceof ApiError ? err.message : 'تعذر حذف اللون', 'error')
@@ -65,7 +60,7 @@ export function ColorsPage(): ReactElement {
           columns={[
             { key: 'code', header: 'الكود', render: (row) => <strong>{row.code}</strong> },
             { key: 'name', header: 'الاسم', render: (row) => row.name },
-            { key: 'type', header: 'نوع المادة المرتبطة', render: (row) => row.relatedMaterialType ?? '—' },
+            { key: 'type', header: 'المواد المرتبطة', render: (row) => `${row.baseMaterialNames.join('، ') || '—'}${row.unresolvedMaterialIds.length ? ' ⚠ أساس غير محدد' : ''}${row.legacyAssociationConflict ? ' ⚠ ارتباط قديم متعارض' : ''}` },
             { key: 'notes', header: 'ملاحظات', render: (row) => row.notes ?? '—' },
             { key: 'active', header: 'الحالة', render: (row) => <Badge tone={row.active ? 'success' : 'neutral'}>{row.active ? 'مفعّل' : 'غير مفعّل'}</Badge> },
             {
@@ -90,19 +85,11 @@ export function ColorsPage(): ReactElement {
         <ErrorNote>{error}</ErrorNote>
         <Field label="كود اللون" required hint="مثال: 101"><Input value={editing?.code ?? ''} onChange={(e) => setEditing({ ...editing, code: e.target.value })} /></Field>
         <Field label="اسم اللون" required><Input value={editing?.name ?? ''} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></Field>
-        <Field label="نوع المادة المرتبطة">
-          <SearchableMaterialSelect
-            materials={materials.data ?? []}
-            value={editing?.relatedMaterialId ? String(editing.relatedMaterialId) : ''}
-            noneLabel="— بدون —"
-            legacyLabel={editing?.relatedMaterialType}
-            onChange={(id) => setEditing({
-              ...editing,
-              relatedMaterialId: id ? Number(id) : null,
-              relatedMaterialType: id ? materials.data?.find((material) => String(material.id) === id)?.name ?? null : null,
-              materialSelectionChanged: true
-            })}
-          />
+        <Field label="المواد المرتبطة">
+          <div>{editing?.baseMaterialNames?.join('، ') || '—'}</div>
+          {Boolean(editing?.unresolvedMaterialIds?.length) && <ErrorNote>تعذر تحديد التصنيف الأساسي للمواد ذات المعرّفات: {editing?.unresolvedMaterialIds?.join('، ')}.</ErrorNote>}
+          <p className="muted">تُحدَّد من حقل لون الصنف في نموذج المادة.</p>
+          {editing?.legacyAssociationConflict && <ErrorNote>ارتباط قديم يحتاج مراجعة: {editing.relatedMaterialType || 'مادة محفوظة'}{editing.relatedMaterialId ? ` (#${editing.relatedMaterialId})` : ''}. لم تُحذف البيانات القديمة.</ErrorNote>}
         </Field>
         <Field label="ملاحظات"><Textarea value={editing?.notes ?? ''} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} /></Field>
         {editing?.id && (

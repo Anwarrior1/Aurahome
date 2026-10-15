@@ -40,6 +40,9 @@ export const IPC_CHANNELS = {
     create: 'categories:create',
     createChildMaterial: 'categories:createChildMaterial',
     update: 'categories:update',
+    deletePreview: 'categories:deletePreview',
+    materialDeletePreview: 'categories:materialDeletePreview',
+    removeMaterial: 'categories:removeMaterial',
     remove: 'categories:remove'
   },
   colors: {

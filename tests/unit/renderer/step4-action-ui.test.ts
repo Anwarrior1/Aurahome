@@ -245,23 +245,16 @@ describe('Step 4 action/navigation UI contract', () => {
     expect(materials).not.toContain('form-section-title')
   })
 
-  it('makes Raw Material delete a real, confirmed, permanent full delete — never a silent disable', () => {
+  it('keeps Raw Materials viewing and editing without any deletion path', () => {
     const materials = read('src/renderer/pages/materials/MaterialsPage.tsx')
-    // Delete always goes straight to the dependency-preview + typed-name
-    // confirmation flow — never the old archive-on-reference channel.
-    expect(materials).toContain("call<FullDeletePreview>('materials', 'fullDeletePreview'")
-    expect(materials).toContain("call('materials', 'fullDelete'")
-    expect(materials).not.toContain("call('materials', 'remove'")
-    expect(materials).not.toContain('إذا كانت مستخدمة فسيتم تعطيلها')
-    // The final button only enables once the typed text exactly matches
-    // the material's own current name, and is disabled while blocked.
-    expect(materials).toContain(
-      'deleteDialog?.confirmation.trim() !== deleteDialog?.row.name.trim()'
-    )
-    expect(materials).toContain('Boolean(deleteDialog?.preview.blockers.length)')
-    // The delete icon itself is gated on the separate fullDelete
-    // permission, not the plain manage permission.
-    expect(materials).toContain('can(P.materials.fullDelete)')
+    expect(materials).toContain('setMaterialRequest({ material: row })')
+    expect(materials).toContain('aria-label="سجل حركة المخزون"')
+    expect(materials).not.toContain('fullDelete')
+    expect(materials).not.toContain('removeMaterial')
+    expect(materials).not.toContain('aria-label="حذف"')
+    expect(materials).not.toContain('deleteDialog')
+    expect(materials).not.toContain('onContextMenu')
+    expect(materials).not.toContain('onKeyDown')
   })
 
   it('the shared Raw Material form creates under a stable parent id and keeps linked placement read-only', () => {

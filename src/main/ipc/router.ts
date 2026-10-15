@@ -41,7 +41,6 @@ import { restoreFromBackup } from '../restore/restore.service'
 import { pickBackupDestinationFile, pickBackupFileToRestore } from '../files/dialogs'
 import { BrowserWindow } from 'electron'
 import { setTheme } from '../services/admin/users.service'
-import { AppError } from '../utils/errors'
 import { logger } from '../utils/logger'
 import { hasPermission, requirePermission } from '../permissions/permission-guard'
 import { safeIntegerSchema } from '@shared/schemas/common.schema'
@@ -244,6 +243,27 @@ export function registerIpcRouter(): void {
   })
 
   // ---- Catalog: categories, colours, materials ----
+  const materialSchema = z.object({
+    sku: z.string().min(1),
+    name: z.string().min(1),
+    categoryId: safeIntegerSchema,
+    unit: z.string().min(1),
+    purchaseUnit: z.string().nullable().optional(),
+    purchaseUnitFactorMicro: safeIntegerSchema.nullable().optional(),
+    tracksDimensions: z.boolean().optional(),
+    dimensions: z.string().nullable().optional(),
+    thickness: z.string().nullable().optional(),
+    currentMarketPriceMicro: safeIntegerSchema.nonnegative(),
+    pricingRule: z.enum(['exact', 'full_unit', 'round_up', 'manual']),
+    commercialUnitSizeMicro: safeIntegerSchema.nullable().optional(),
+    reorderLevelMicro: safeIntegerSchema.optional(),
+    notes: z.string().nullable().optional(),
+    active: z.boolean().optional(),
+    colorId: safeIntegerSchema.int().positive().nullable().optional()
+  })
+  const categoryMaterialDetailsSchema = materialSchema.omit({ categoryId: true }).extend({
+    name: z.string().min(1).optional()
+  })
   on(bus, IPC_CHANNELS.categories.tree, { permission: P.materials.view }, () =>
     catalog.categoryTree()
   )
@@ -258,7 +278,9 @@ export function registerIpcRouter(): void {
         name: z.string().min(1),
         parentId: safeIntegerSchema.int().positive().nullable().optional(),
         sortOrder: safeIntegerSchema.optional(),
-        isAccessory: z.boolean().optional()
+        isAccessory: z.boolean().optional(),
+        showInRawMaterials: z.boolean().optional(),
+        materialDetails: categoryMaterialDetailsSchema.optional()
       }),
       permission: P.materials.manage
     },
@@ -274,12 +296,35 @@ export function registerIpcRouter(): void {
         parentId: safeIntegerSchema.nullable().optional(),
         sortOrder: safeIntegerSchema.optional(),
         active: z.boolean().optional(),
-        isAccessory: z.boolean().optional()
+        isAccessory: z.boolean().optional(),
+        showInRawMaterials: z.boolean().optional(),
+        materialDetails: categoryMaterialDetailsSchema.optional()
       }),
       permission: P.materials.manage
     },
     ({ id, ...rest }, ctx) => {
       catalog.updateCategory(id, rest, ctx)
+      return { ok: true }
+    }
+  )
+  on(
+    bus,
+    IPC_CHANNELS.categories.deletePreview,
+    { schema: idSchema, permission: P.materials.manage },
+    ({ id }) => catalog.categoryDeletePreview(id)
+  )
+  on(
+    bus,
+    IPC_CHANNELS.categories.materialDeletePreview,
+    { schema: idSchema, permission: P.materials.fullDelete },
+    ({ id }) => catalog.materialDefinitionDeletePreview(id)
+  )
+  on(
+    bus,
+    IPC_CHANNELS.categories.removeMaterial,
+    { schema: idSchema.extend({ confirmation: z.string().min(1) }), permission: P.materials.fullDelete },
+    (input, ctx) => {
+      catalog.deleteMaterialDefinition(input, ctx)
       return { ok: true }
     }
   )
@@ -347,24 +392,6 @@ export function registerIpcRouter(): void {
     ({ id }, ctx) => catalog.deleteColor(id, ctx)
   )
 
-  const materialSchema = z.object({
-    sku: z.string().min(1),
-    name: z.string().min(1),
-    categoryId: safeIntegerSchema,
-    unit: z.string().min(1),
-    purchaseUnit: z.string().nullable().optional(),
-    purchaseUnitFactorMicro: safeIntegerSchema.nullable().optional(),
-    tracksDimensions: z.boolean().optional(),
-    dimensions: z.string().nullable().optional(),
-    thickness: z.string().nullable().optional(),
-    currentMarketPriceMicro: safeIntegerSchema.nonnegative(),
-    pricingRule: z.enum(['exact', 'full_unit', 'round_up', 'manual']),
-    commercialUnitSizeMicro: safeIntegerSchema.nullable().optional(),
-    reorderLevelMicro: safeIntegerSchema.optional(),
-    notes: z.string().nullable().optional(),
-    active: z.boolean().optional(),
-    colorId: safeIntegerSchema.int().positive().nullable().optional()
-  })
   on(
     bus,
     IPC_CHANNELS.categories.createChildMaterial,
@@ -412,9 +439,7 @@ export function registerIpcRouter(): void {
     bus,
     IPC_CHANNELS.materials.create,
     { schema: materialSchema, permission: P.materials.manage },
-    () => {
-      throw new AppError('VALIDATION_ERROR', 'تُضاف المواد الخام من شجرة تصنيفات المواد فقط')
-    }
+    (req, ctx) => ({ id: catalog.createMaterial(req, ctx) })
   )
   on(
     bus,

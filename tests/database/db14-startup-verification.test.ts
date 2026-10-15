@@ -422,8 +422,8 @@ describe('DB-14 startup scale qualification', () => {
         return result
       }
       expect(measure('normal-current', () => undefined).integrityChecks).toBe(1)
-      // Same history rewound to supported prefix 0043 (0044-0052 are triggers, indexes and two
-      // nullable columns): DB-01 recovery snapshot + migration + DB-07 gate.
+      // Same history rewound to supported prefix 0043 (0044-0053 add triggers,
+      // indexes and columns): DB-01 recovery snapshot + migration + DB-07 gate.
       expect(measure('post-migration-from-0043', (live) => {
         const raw = new Database(live)
         for (const { name } of raw.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'db06_integer_%'").all() as Array<{ name: string }>) {
@@ -434,7 +434,8 @@ describe('DB-14 startup scale qualification', () => {
           DROP TRIGGER db06_recurring_amount_insert; DROP TRIGGER db06_recurring_amount_update;
           DROP INDEX users_username_live_unique; CREATE UNIQUE INDEX users_username_unique ON users (username);
           DROP INDEX worker_transactions_assignment_earning_unique; ALTER TABLE worker_transactions DROP COLUMN assignment_id;
-          DROP INDEX expenses_uncollected_product_idx; ALTER TABLE expenses DROP COLUMN uncollected_product_id;`)
+          DROP INDEX expenses_uncollected_product_idx; ALTER TABLE expenses DROP COLUMN uncollected_product_id;
+          ALTER TABLE material_categories DROP COLUMN show_in_raw_materials;`)
         raw.prepare('DELETE FROM __drizzle_migrations WHERE created_at > ?').run(journal.entries[43]!.when)
         raw.close()
       }).integrityChecks).toBe(7)

@@ -26,7 +26,7 @@ const plan = (raw: Database.Database) => (raw.prepare(LOOKUP).all() as Array<{ d
 
 describe('0046 DB-13 cash mirror reference index', () => {
   it('remains unchanged in the pinned history after later migrations', () => {
-    expect(CURRENT_MIGRATION_INDEX).toBe(52)
+    expect(CURRENT_MIGRATION_INDEX).toBe(53)
     expect(CANONICAL_MIGRATION_HISTORY[46]).toMatchObject({
       idx: 46,
       tag: '0046_db13_cash_mirror_ref_index',
@@ -59,7 +59,7 @@ describe('0046 DB-13 cash mirror reference index', () => {
         sql: 'CREATE INDEX `cash_transactions_ref_idx` ON `cash_transactions` (`ref_table`,`ref_id`)'
       })
       expect(plan(raw)).toMatch(/USING (COVERING )?INDEX cash_transactions_ref_idx \(ref_table=\? AND ref_id=\?\)/)
-      expect(raw.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+      expect(raw.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
       expect(raw.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
       expect(raw.pragma('foreign_key_check')).toEqual([])
     } finally {

@@ -16,6 +16,7 @@ export interface Material {
   categoryId: number
   unit: string
   hierarchyNodeId: number | null
+  creationKey?: string | null
   hierarchyPath?: string
   purchaseUnit: string | null
   purchaseUnitFactorMicro: number | null
@@ -29,16 +30,20 @@ export interface Material {
   notes: string | null
   active: boolean
   colorId: number | null
+  baseCategoryName?: string | null
 }
 export interface CategoryOption {
   id: number
+  name: string
   label: string
+  showInRawMaterials: boolean
 }
 /** Loose enough that both المواد الخام's own tree query and تصنيفات
  *  المواد's richer one (extra fields like materialCount) satisfy it. */
 export interface CategoryNode {
   id: number
   name: string
+  showInRawMaterials: boolean
   children: CategoryNode[]
 }
 
@@ -56,9 +61,17 @@ const RULES: Record<string, string> = {
  */
 export function flattenCategoryOptions(nodes: CategoryNode[], depth = 0): CategoryOption[] {
   return nodes.flatMap((node) => [
-    { id: node.id, label: `${'  '.repeat(depth)}${depth > 0 ? '└ ' : ''}${node.name}` },
+    { id: node.id, name: node.name, label: `${'  '.repeat(depth)}${depth > 0 ? '└ ' : ''}${node.name}`, showInRawMaterials: node.showInRawMaterials },
     ...flattenCategoryOptions(node.children, depth + 1)
   ])
+}
+
+export function assignmentCategoryOptions(options: CategoryOption[], currentId?: number): CategoryOption[] {
+  const selectable = options.filter((category) => category.showInRawMaterials)
+  const current = options.find((category) => category.id === currentId)
+  return current && !current.showInRawMaterials
+    ? [{ ...current, label: `${current.label} — غير متاح للتعيينات الجديدة` }, ...selectable]
+    : selectable
 }
 
 /**
@@ -68,12 +81,14 @@ export function flattenCategoryOptions(nodes: CategoryNode[], depth = 0): Catego
 export interface MaterialFormRequest {
   material?: Material
   parentNodeId?: number
+  parentNodePath?: string
   clientRequestId?: string
+  categoryToEnable?: { id?: number; name: string; parentId?: number; path: string }
 }
 
 /**
- * THE one Raw Material create/edit form (item 8) — used from المواد
- * الخام's edit action and from تصنيفات المواد's "صنف مادة" action.
+ * The Raw Material create/edit form — used from المواد الخام and
+ * تصنيفات المواد's "صنف مادة" action.
  * Every field, every validation rule and
  * the save call itself live here once; neither caller repeats any of it.
  */
@@ -93,8 +108,16 @@ export function MaterialFormModal({
   const [error, setError] = useState<string>()
   const [saving, setSaving] = useState(false)
   const colors = useQuery<ColorOption[]>('materials', 'colorOptions', undefined, {
-    enabled: Boolean(request && !request.material)
+    enabled: Boolean(request)
   })
+  const assignmentOptions = assignmentCategoryOptions(
+    categoryOptions,
+    request?.material && !request.material.hierarchyNodeId ? request.material.categoryId : undefined
+  )
+  const selectedCategoryName = categoryOptions.find((category) => category.id === Number(form?.categoryId))?.name
+  const baseName = request?.categoryToEnable?.name ??
+    (request?.parentNodeId ? categoryOptions.find((category) => category.id === request.parentNodeId)?.name : undefined) ??
+    request?.material?.baseCategoryName ?? selectedCategoryName
 
   // Re-seeds the form fresh every time a NEW open request arrives —
   // editing a different row, or creating under a different clicked
@@ -105,10 +128,14 @@ export function MaterialFormModal({
     const material = request.material
     setForm({
       sku: material?.sku ?? '',
-      name: material?.name ?? 'خام',
+      name: request.categoryToEnable?.name ??
+        (request.parentNodeId ? categoryOptions.find((category) => category.id === request.parentNodeId)?.name : undefined) ??
+        material?.baseCategoryName ??
+        (material ? categoryOptions.find((category) => category.id === material.categoryId)?.name : undefined) ??
+        material?.name ?? '',
       leafType: material?.colorId ? 'colored' : 'raw',
       colorId: material?.colorId ? String(material.colorId) : '',
-      categoryId: String(material?.categoryId ?? ''),
+      categoryId: String(material?.categoryId ?? request.categoryToEnable?.id ?? ''),
       unit: material?.unit ?? '',
       hasPurchaseUnit: Boolean(material?.purchaseUnit),
       purchaseUnit: material?.purchaseUnit ?? '',
@@ -134,6 +161,16 @@ export function MaterialFormModal({
 
   async function save(): Promise<void> {
     if (!form || saving) return
+    if (!request?.parentNodeId && !request?.categoryToEnable && !request?.material?.hierarchyNodeId && !form.categoryId) {
+      setError('اختر التصنيف')
+      return
+    }
+    if (form.leafType === 'colored' && (!form.colorId ||
+      (Number(form.colorId) !== request?.material?.colorId &&
+        !colors.data?.some((color) => color.id === Number(form.colorId))))) {
+      setError('يرجى اختيار لون الصنف من كتالوج الألوان.')
+      return
+    }
     setSaving(true)
     try {
       const hasPurchaseUnit = Boolean(form.hasPurchaseUnit)
@@ -157,24 +194,38 @@ export function MaterialFormModal({
           : null,
         reorderLevelMicro: form.reorderLevel ? toMicro(String(form.reorderLevel)) : 0,
         notes: form.notes ? String(form.notes) : null,
-        active: Boolean(form.active)
+        active: Boolean(form.active),
+        colorId: form.leafType === 'colored' ? Number(form.colorId) : null
       }
-      if (request?.material) {
+      if (request?.categoryToEnable) {
+        const { id, name, parentId } = request.categoryToEnable
+        if (id) {
+          await call('categories', 'update', { id, name, showInRawMaterials: true, materialDetails: payload })
+        } else {
+          await call('categories', 'create', { name, parentId, showInRawMaterials: true, materialDetails: payload })
+        }
+      } else if (request?.material) {
+        const { name, ...materialUpdate } = payload
         await call('materials', 'update', {
           id: request.material.id,
-          ...payload,
-          categoryId: request.material.categoryId
+          ...materialUpdate,
+          ...(!baseName ? { name } : {}),
+          categoryId: request.material.hierarchyNodeId
+            ? request.material.categoryId
+            : Number(form.categoryId)
         })
       } else if (request?.parentNodeId && request.clientRequestId) {
         await call('categories', 'createChildMaterial', {
           ...payload,
           leafType: String(form.leafType) as 'raw' | 'colored',
-          colorId: form.leafType === 'colored' ? Number(form.colorId) : null,
           parentId: request.parentNodeId,
           clientRequestId: request.clientRequestId
         })
+      } else {
+        await call('materials', 'create', { ...payload, categoryId: Number(form.categoryId) })
       }
       toast.show('تم حفظ المادة', 'success')
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('catalog-changed'))
       onSaved()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'تعذر الحفظ')
@@ -186,7 +237,7 @@ export function MaterialFormModal({
     <Modal
       open={Boolean(request)}
       wide
-      title={request?.material ? 'تعديل مادة' : 'صنف مادة جديد'}
+      title={request?.material ? 'تعديل مادة' : 'إضافة مادة'}
       onClose={onClose}
       footer={
         <>
@@ -205,16 +256,15 @@ export function MaterialFormModal({
           {/* ---------- البيانات الأساسية — كل مادة تحتاجها ---------- */}
           <h3 className="form-section-title">البيانات الأساسية</h3>
           <div className="grid grid--3">
-            {!request?.material && (
-              <Field label="نوع الصنف" required>
+            {request && (
+              <Field label="نوع المادة" required>
                 <Select
                   value={String(form.leafType)}
                   onChange={(e) =>
                     setForm({
                       ...form,
                       leafType: e.target.value,
-                      colorId: '',
-                      name: e.target.value === 'raw' ? 'خام' : ''
+                      colorId: ''
                     })
                   }
                 >
@@ -229,43 +279,55 @@ export function MaterialFormModal({
                 onChange={(e) => setForm({ ...form, sku: e.target.value })}
               />
             </Field>
-            {!request?.material && form.leafType === 'colored' ? (
+            <Field label="اسم المادة" required>
+              <Input
+                value={String(form.name)}
+                disabled={Boolean(baseName)}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </Field>
+            {form.leafType === 'colored' && (
               <Field label="لون الصنف" required>
                 <SearchableColorSelect
                   colors={colors.data ?? []}
                   value={String(form.colorId)}
                   valueMode="id"
                   noneLabel="— اختر من كتالوج الألوان —"
-                  onChange={(colorId) => {
-                    const color = colors.data?.find((item) => item.id === Number(colorId))
-                    setForm({
-                      ...form,
-                      colorId,
-                      name: color ? `${color.code} — ${color.name}` : ''
-                    })
-                  }}
-                />
-              </Field>
-            ) : (
-              <Field label="اسم المادة" required>
-                <Input
-                  value={String(form.name)}
-                  disabled={Boolean(request?.material?.colorId)}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  historicalValueLabel={`لون محفوظ (#${form.colorId})`}
+                  onChange={(colorId) => setForm({ ...form, colorId })}
                 />
               </Field>
             )}
-            {request?.material?.hierarchyNodeId ? (
+            {form.leafType === 'colored' && !colors.loading && !colors.data?.length && (
+              <p className="muted">لا توجد ألوان متاحة في كتالوج الألوان.</p>
+            )}
+            {request?.categoryToEnable ? (
               <Field label="المسار">
-                <Input value={request.material.hierarchyPath ?? request.material.name} disabled />
+                <Input value={request.categoryToEnable.path} disabled />
               </Field>
-            ) : request?.material ? (
+            ) : request?.material?.hierarchyNodeId ? (
+              <Field label="المسار">
+                <Input
+                  value={`${request.material.hierarchyPath ?? request.material.name}${
+                    categoryOptions.find((category) => category.id === request.material?.categoryId)?.showInRawMaterials === false
+                      ? ' — غير متاح للتعيينات الجديدة'
+                      : ''
+                  }`}
+                  disabled
+                />
+              </Field>
+            ) : request?.material || !request?.parentNodeId ? (
               <Field label="التصنيف" required>
                 <Select
                   value={String(form.categoryId)}
-                  onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                  onChange={(e) => setForm({
+                    ...form,
+                    categoryId: e.target.value,
+                    name: categoryOptions.find((category) => category.id === Number(e.target.value))?.name ?? ''
+                  })}
                 >
-                  {categoryOptions.map((c) => (
+                  <option value="">— اختر التصنيف —</option>
+                  {assignmentOptions.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
                     </option>
@@ -273,11 +335,9 @@ export function MaterialFormModal({
                 </Select>
               </Field>
             ) : (
-              <Field label="تحت">
+              <Field label="المسار">
                 <Input
-                  value={
-                    categoryOptions.find((c) => c.id === request?.parentNodeId)?.label.trim() ?? '—'
-                  }
+                  value={request?.parentNodePath ?? categoryOptions.find((c) => c.id === request?.parentNodeId)?.name ?? '—'}
                   disabled
                 />
               </Field>

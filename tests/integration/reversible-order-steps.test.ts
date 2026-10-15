@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { assertDb10Equivalence } from '../helpers/db10-equivalence'
 import { setupTestDatabase, type TestEnv } from '../helpers/test-db'
 import { getRawConnection } from '@main/db/connection'
-import { createCategory, createMaterial, createColor } from '@main/services/catalog/catalog.service'
+import { createCategory, createMaterial, createColor, updateColor } from '@main/services/catalog/catalog.service'
 import { createCustomer, createSupplier, supplierBalances } from '@main/services/parties/parties.service'
 import { createPurchase, getPurchase } from '@main/services/purchasing/purchasing.service'
 import { createFinalInvoice, approveFinalInvoice, getFinalInvoice, updateFinalInvoice, unapproveFinalInvoice, addFinalInvoiceTerms } from '@main/services/sales/final-invoices.service'
@@ -42,7 +42,8 @@ function seed(opts: { paid?: number; produce?: boolean; start?: boolean; fulfill
   const approved = approveFinalInvoice(invoice.id, env.ctx)
   const order = getOrder(approved.orderId).order
   const categoryId = createCategory({ name: 'مواد دورة التراجع' }, env.ctx)
-  const materialId = createMaterial({ sku: 'STEP-MDF', name: 'لوح', categoryId, unit: 'لوح', pricingRule: 'exact', currentMarketPriceMicro: c(999) }, env.ctx)
+  const materialColorId = createColor({ code: 'STEP-BASE', name: 'تشطيب أساسي' }, env.ctx)
+  const materialId = createMaterial({ sku: 'STEP-MDF', name: 'لوح', categoryId, colorId: materialColorId, unit: 'لوح', pricingRule: 'exact', currentMarketPriceMicro: c(999) }, env.ctx)
   const supplierId = createSupplier({ name: 'مورد دورة التراجع' }, env.ctx)
   const purchase = createPurchase({ supplierId, customerOrderId: order.id, paidNowMinor: m(200), cashAccountId: accountId, lines: [{ materialId, qtyMicro: q(3), unitCostMicro: c(100) }] }, env.ctx)
   createPurchase({ supplierId, customerOrderId: order.id, lines: [{ materialId, qtyMicro: q(7), unitCostMicro: c(150) }] }, env.ctx)
@@ -471,7 +472,8 @@ describe('domain-owned step-by-step Customer Order correction', () => {
     const oldLine = getOrder(f.order.id).lines[0]
     getRawConnection().prepare('UPDATE order_worker_assignments SET order_line_id=? WHERE work_sheet_id=?').run(oldLine.id, f.sheet!.id)
     undo(f); unapprove(f.invoice.id)
-    const colorId = createColor({ code: 'STEP-NEW', name: 'تشطيب مصحح', relatedMaterialId: f.materialId }, env.ctx)
+    const colorId = (getRawConnection().prepare('SELECT color_id AS id FROM materials WHERE id = ?').get(f.materialId) as { id: number }).id
+    updateColor(colorId, { code: 'STEP-NEW', name: 'تشطيب مصحح' }, env.ctx)
     const accessories = createCategory({ name: 'ملحقات التصحيح', isAccessory: true }, env.ctx)
     const accessoryId = createMaterial({ sku: 'STEP-ACC', name: 'مقبض مصحح', categoryId: accessories, unit: 'قطعة', pricingRule: 'exact', currentMarketPriceMicro: 0 }, env.ctx)
     updateFinalInvoice(f.invoice.id, { lines: [{ lineKind: 'custom', description: 'مصّحح', quantityMicro: q(1), unitPriceMinor: m(12000), materialIds: [f.materialId], colorIds: [colorId], accessoryIds: [accessoryId] }] }, env.ctx)

@@ -65,11 +65,13 @@ function leaf(
 }
 
 describe('four-level material classification', () => {
-  it('keeps the first three levels organizational and atomically registers only final leaves', () => {
+  it('attaches distinct material items directly to the selected base category', () => {
     const { main, family, type } = hierarchy()
+    updateCategory(type, { showInRawMaterials: false }, env.ctx)
     expect(listMaterials({})).toEqual([])
 
     const raw = leaf(type, 'خام', 'MDF-18-RAW')
+    expect(categoryTree()[0]?.children[0]?.children[0]?.visibilityMaterialId).toBe(raw.materialId)
     const colorId = createColor({ code: '405', name: 'Red' }, env.ctx)
     const colored = leaf(type, 'ignored free text', 'MDF-18-405', {
       leafType: 'colored',
@@ -85,18 +87,20 @@ describe('four-level material classification', () => {
       }))
     ).toEqual([
       {
-        id: colored.materialId,
-        name: '405 — Red',
-        path: 'Wood ← MDF ← MDF 18 ← 405 — Red',
-        colorId
+        id: raw.materialId,
+        name: 'MDF 18',
+        path: 'Wood ← MDF ← MDF 18',
+        colorId: null
       },
-      { id: raw.materialId, name: 'خام', path: 'Wood ← MDF ← MDF 18 ← خام', colorId: null }
+      { id: colored.materialId, name: 'MDF 18', path: 'Wood ← MDF ← MDF 18', colorId }
     ])
     expect(listMaterials({}).map((row) => row.id)).not.toEqual(
       expect.arrayContaining([main, family, type])
     )
     expect(getDatabase().select().from(inventoryMovements).all()).toEqual([])
     expect(stockLevels().every((row) => row.qtyMicro === 0)).toBe(true)
+    expect(availableQty(raw.materialId)).toBe(0)
+    expect(availableQty(colored.materialId)).toBe(0)
 
     const root = categoryTree()[0]!
     expect(root).toMatchObject({ id: main, nodeKind: 'main_category', rawMaterialId: null })
@@ -108,12 +112,15 @@ describe('four-level material classification', () => {
     expect(root.children[0]?.children[0]).toMatchObject({
       id: type,
       nodeKind: 'material_type',
-      rawMaterialId: null
+      rawMaterialId: null,
+      visibilityMaterialId: null,
+      materialCount: 2
     })
-    expect(root.children[0]?.children[0]?.children.map((node) => node.nodeKind)).toEqual([
-      'inventory_leaf',
-      'inventory_leaf'
-    ])
+    expect(root.children[0]?.children[0]?.children).toEqual([])
+    expect(raw.categoryId).toBe(type)
+    expect(colored.categoryId).toBe(type)
+    expect(raw.materialId).not.toBe(colored.materialId)
+    expect(root.children[0]?.children[0]?.showInRawMaterials).toBe(true)
   })
 
   it('creates same-named raw leaves under different material types as independent stock items', () => {
@@ -131,6 +138,8 @@ describe('four-level material classification', () => {
       leafType: 'colored',
       colorId: walnutColor
     })
+    updateCategory(first.type, { showInRawMaterials: true }, env.ctx)
+    updateCategory(secondType, { showInRawMaterials: true }, env.ctx)
     const supplierId = createSupplier({ name: 'Supplier' }, env.ctx)
     createPurchase(
       {
@@ -166,7 +175,7 @@ describe('four-level material classification', () => {
     expect(availableQty(raw6.materialId)).toBe(quantityFromDisplay(8))
     expect(availableQty(red.materialId)).toBe(quantityFromDisplay(8))
     expect(availableQty(walnut.materialId)).toBe(quantityFromDisplay(13))
-    expect(getMaterial(raw6.materialId).hierarchyPath).toBe('Wood ← MDF ← MDF 6 ← خام')
+    expect(getMaterial(raw6.materialId).hierarchyPath).toBe('Wood ← MDF ← MDF 6')
   })
 
   it('derives paths after parent rename/move without changing material ids or stock history', () => {
@@ -176,18 +185,18 @@ describe('four-level material classification', () => {
     updateCategory(family, { name: 'MDF ألواح' }, env.ctx)
     expect(getMaterial(raw.materialId)).toMatchObject({
       id: raw.materialId,
-      hierarchyPath: 'Wood ← MDF ألواح ← MDF 18 ← خام'
+      hierarchyPath: 'Wood ← MDF ألواح ← MDF 18'
     })
 
     const otherMain = createCategory({ name: 'Engineered' }, env.ctx)
     const otherFamily = createCategory({ name: 'Boards', parentId: otherMain }, env.ctx)
     updateCategory(type, { parentId: otherFamily }, env.ctx)
-    expect(getMaterial(raw.materialId).hierarchyPath).toBe('Engineered ← Boards ← MDF 18 ← خام')
+    expect(getMaterial(raw.materialId).hierarchyPath).toBe('Engineered ← Boards ← MDF 18')
     expect(stockLevels()).toEqual(beforeStock)
     expect(getDatabase().select().from(inventoryMovements).all()).toEqual([])
   })
 
-  it('keeps color identity authoritative and synchronizes catalog renames without recreating stock', () => {
+  it('keeps color identity separate from base material naming', () => {
     const { type } = hierarchy()
     const colorId = createColor({ code: '410', name: 'Walnut' }, env.ctx)
     const item = leaf(type, 'not authoritative', 'MDF-18-410', { leafType: 'colored', colorId })
@@ -195,35 +204,21 @@ describe('four-level material classification', () => {
 
     expect(getMaterial(item.materialId)).toMatchObject({
       id: item.materialId,
-      name: '411 — Dark Walnut',
+      name: 'MDF 18',
       colorId,
-      hierarchyPath: 'Wood ← MDF ← MDF 18 ← 411 — Dark Walnut'
+      hierarchyPath: 'Wood ← MDF ← MDF 18'
     })
-    expect(categoryTree()[0]?.children[0]?.children[0]?.children[0]).toMatchObject({
-      id: item.categoryId,
-      name: '411 — Dark Walnut'
-    })
-    expect(() => updateCategory(item.categoryId, { name: 'free text' }, env.ctx)).toThrow(/كتالوج/)
+    expect(categoryTree()[0]?.children[0]?.children[0]?.children).toEqual([])
     expect(deleteColor(colorId, env.ctx)).toEqual({ deleted: false, archived: true })
     expect(getMaterial(item.materialId).colorId).toBe(colorId)
   })
 
-  it('prevents duplicates and rolls back the hierarchy leaf when material insertion fails', () => {
+  it('prevents duplicate requests and rolls back when material insertion fails', () => {
     const { type } = hierarchy()
     const first = leaf(type, 'خام', 'MDF-18-RAW', { key: 'stable-request-1' })
     expect(leaf(type, 'خام', 'MDF-18-RAW', { key: 'stable-request-1' })).toEqual(first)
     expect(getDatabase().select().from(materials).all()).toHaveLength(1)
-    expect(() =>
-      getRawConnection()
-        .prepare(
-          `
-      INSERT INTO materials
-        (sku,name,category_id,hierarchy_node_id,unit,current_market_price_micro,pricing_rule)
-      VALUES ('DUP','Duplicate',?,?, 'لوح',0,'exact')
-    `
-        )
-        .run(first.categoryId, first.categoryId)
-    ).toThrow()
+    expect(() => leaf(type, 'ignored', 'MDF-18-RAW', { key: 'different-request' })).toThrow()
 
     const nodesBefore = getDatabase().select().from(materialCategories).all()
     const auditBefore = getRawConnection().prepare('SELECT COUNT(*) AS c FROM audit_log').get() as {
@@ -240,6 +235,16 @@ describe('four-level material classification', () => {
     ).toBe(auditBefore.c)
   })
 
+  it('rolls back category visibility when material audit fails', () => {
+    const { type } = hierarchy()
+    updateCategory(type, { showInRawMaterials: false }, env.ctx)
+    expect(categoryTree()[0]?.children[0]?.children[0]?.showInRawMaterials).toBe(false)
+    getRawConnection().exec("CREATE TRIGGER fail_new_item_audit BEFORE INSERT ON audit_log WHEN NEW.action = 'catalog.material.create' BEGIN SELECT RAISE(FAIL, 'audit failure'); END")
+    expect(() => leaf(type, 'ignored', 'MDF-FAIL')).toThrow()
+    expect(categoryTree()[0]?.children[0]?.children[0]?.showInRawMaterials).toBe(false)
+    expect(listMaterials({})).toEqual([])
+  })
+
   it('searches path in one batched tree load and selectors expose actual materials only', () => {
     const { main, family, type } = hierarchy()
     const raw = leaf(type, 'خام', 'MDF-18-RAW')
@@ -252,7 +257,7 @@ describe('four-level material classification', () => {
     expect(options).toEqual([
       expect.objectContaining({
         id: raw.materialId,
-        hierarchyPath: 'Wood ← MDF ← MDF 18 ← خام'
+        hierarchyPath: 'Wood ← MDF ← MDF 18'
       })
     ])
     expect(options.map((row) => row.id)).not.toEqual(expect.arrayContaining([main, family, type]))
@@ -266,7 +271,7 @@ describe('four-level material classification', () => {
     closeDatabase()
     expect(getMaterial(raw.materialId)).toMatchObject({
       id: raw.materialId,
-      hierarchyPath: 'Wood ← MDF ← MDF 18 ← خام'
+      hierarchyPath: 'Wood ← MDF ← MDF 18'
     })
   })
 
@@ -301,7 +306,9 @@ describe('four-level material classification', () => {
         }
       ).c
     ).toBe(colorCount.c)
-    expect(() => createCategory({ name: 'Too deep', parentId: type }, env.ctx)).toThrow(/مخزونياً/)
+    const nested = createCategory({ name: 'Fourth level', parentId: type }, env.ctx)
+    expect(categoryTree()[0]?.children[0]?.children[0]?.children.find((node) => node.id === nested))
+      .toMatchObject({ nodeKind: 'material_type', depth: 3 })
 
     const handlers = new Map<
       string,
@@ -338,8 +345,8 @@ describe('four-level material classification', () => {
       unit: 'لوح',
       currentMarketPriceMicro: 0,
       pricingRule: 'exact'
-    })) as { ok: boolean; error?: { code: string } }
-    expect(direct).toMatchObject({ ok: false, error: { code: 'VALIDATION_ERROR' } })
+    })) as { ok: boolean; data?: { id: number } }
+    expect(direct).toMatchObject({ ok: true, data: { id: expect.any(Number) } })
   })
 
   it('renames raw leaves without changing their material identity', () => {

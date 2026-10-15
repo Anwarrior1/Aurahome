@@ -89,7 +89,7 @@ describe('0049 repository-wide DB-06 integer-domain guards', () => {
       runMigrationsFromFolder(raw, FOLDER)
 
       expect(scanIntegerDomainStorage(raw)).toEqual([])
-      expect(raw.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 53 })
+      expect(raw.prepare('SELECT COUNT(*) AS count FROM __drizzle_migrations').get()).toEqual({ count: 54 })
       expect(raw.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'db06_integer_cash_accounts_insert'").get()).toBeDefined()
       expect(raw.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
       expect(raw.pragma('foreign_key_check')).toEqual([])

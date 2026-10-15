@@ -51,9 +51,11 @@ function seed() {
   const category = createCategory({ name: 'مواد' }, env.ctx)
   const accessoryCategory = createCategory({ name: 'إكسسوارات', isAccessory: true }, env.ctx)
   const child = createCategory({ name: 'مفصلات', parentId: accessoryCategory }, env.ctx)
-  const material = (sku: string, name: string, categoryId: number) =>
-    createMaterial({ sku, name, categoryId, unit: 'قطعة', pricingRule: 'exact' }, env.ctx)
-  const materialIds = [material('MDF', 'MDF 18', category), material('CONTOUR', 'Contour 18', category)]
+  const material = (sku: string, name: string, categoryId: number, colorId?: number) =>
+    createMaterial({ sku, name, categoryId, colorId, unit: 'قطعة', pricingRule: 'exact' }, env.ctx)
+  const grey = createColor({ code: '405', name: 'رمادي' }, env.ctx)
+  const demoGrey = createColor({ code: 'DEMO-G', name: 'رمادي تجريبي' }, env.ctx)
+  const materialIds = [material('MDF', 'MDF 18', category, grey), material('CONTOUR', 'Contour 18', category, demoGrey)]
   return {
     customerId: createCustomer({ name: 'عميل' }, env.ctx),
     materials: materialIds,
@@ -62,10 +64,7 @@ function seed() {
       material('HANDLE', 'مقبض ألمنيوم', accessoryCategory),
       material('SLIDE', 'سحاب', accessoryCategory)
     ],
-    colors: [
-      createColor({ code: '405', name: 'رمادي', relatedMaterialId: materialIds[0] }, env.ctx),
-      createColor({ code: 'DEMO-G', name: 'رمادي تجريبي', relatedMaterialId: materialIds[1] }, env.ctx)
-    ]
+    colors: [grey, demoGrey]
   }
 }
 function integrity() {
@@ -361,7 +360,8 @@ describe.each(['preliminary', 'approved'] as const)('%s multi-value selections',
   it('prints long multi-value Arabic with wrapping and page expansion', () => {
     const s = seed()
     const longName = Array.from({ length: 100 }, (_, i) => `تشطيب عربي محفوظ ${i + 1}`).join(' ')
-    const color = createColor({ code: 'LONG', name: longName, relatedMaterialId: s.materials[0] }, env.ctx)
+    const color = createColor({ code: 'LONG', name: longName }, env.ctx)
+    const longMaterial = createMaterial({ sku: 'LONG-MATERIAL', name: 'مادة طويلة', categoryId: createCategory({ name: 'مواد طويلة' }, env.ctx), colorId: color, unit: 'قطعة', pricingRule: 'exact' }, env.ctx)
     const id = create(
       {
         customerId: s.customerId,
@@ -369,7 +369,7 @@ describe.each(['preliminary', 'approved'] as const)('%s multi-value selections',
         lines: [
           {
             ...LINE,
-            materialIds: s.materials,
+            materialIds: [...s.materials, longMaterial],
             colorIds: [...s.colors, color],
             accessoryIds: s.accessories
           }

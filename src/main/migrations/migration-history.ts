@@ -382,9 +382,16 @@ export const CANONICAL_MIGRATION_HISTORY: readonly CanonicalMigrationIdentity[] 
     "when": 1793033600000,
     "tag": "0052_bl03_uncollected_resale_preparation_cost",
     "hash": "1972520b7572ecf6580aba534f1c0daaf5836427713f01df59f9e425a564d9a7"
+  },
+  {
+    "idx": 53,
+    "version": "6",
+    "when": 1793120000000,
+    "tag": "0053_raw_material_category_visibility",
+    "hash": "5d2f9fae55e61cf50993ce2fd374dfe066a82f4a253af481277d76e447569fbd"
   }
 ] as const
 
 export const OLDEST_SUPPORTED_MIGRATION_INDEX = 0
-export const CURRENT_MIGRATION_INDEX = 52
-export const CURRENT_MIGRATION_CREATED_AT = 1793033600000
+export const CURRENT_MIGRATION_INDEX = 53
+export const CURRENT_MIGRATION_CREATED_AT = 1793120000000

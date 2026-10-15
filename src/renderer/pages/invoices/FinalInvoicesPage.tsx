@@ -137,7 +137,7 @@ export function FinalInvoicesPage(): ReactElement {
     archived
   }, { limit: pageSize })
   const customers = usePagedQuery<{ id: number; name: string; phone: string | null }>('customers', 'list', { activeOnly: true, search: customerSearch || undefined }, { limit: 50, enabled: open })
-  const colors = useQuery<Array<{ id: number; code: string; name: string; relatedMaterialId: number | null }>>('colors', 'list', { activeOnly: true })
+  const colors = useQuery<Array<{ id: number; code: string; name: string; associatedMaterials: Array<{ id: number }> }>>('colors', 'list', { activeOnly: true })
   /* Raw Materials that are classified as accessories (BR-50) — the same
      master the Raw Materials page shows, never a separate list. */
   const accessories = useQuery<Array<{ id: number; sku: string; name: string }>>('materials', 'accessories')

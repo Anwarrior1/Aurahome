@@ -124,7 +124,7 @@ export function prepareItemSelections(
   const db = getRawConnection()
   const materials = new Map<
     number,
-    { id: number; name: string; active: number; accessory: number }
+    { id: number; name: string; active: number; accessory: number; color_id: number | null }
   >()
   if (materialIds.size) {
     const ids = [...materialIds]
@@ -133,19 +133,19 @@ export function prepareItemSelections(
         `WITH RECURSIVE ancestors(material_id, category_id) AS (
       SELECT id, category_id FROM materials WHERE id IN (${ids.map(() => '?').join(',')})
       UNION SELECT a.material_id, c.parent_id FROM ancestors a JOIN material_categories c ON c.id = a.category_id WHERE c.parent_id IS NOT NULL
-    ) SELECT m.id, m.name, m.active, EXISTS(SELECT 1 FROM ancestors a JOIN material_categories c ON c.id = a.category_id WHERE a.material_id = m.id AND c.is_accessory = 1 AND c.active = 1) AS accessory FROM materials m WHERE m.id IN (${ids.map(() => '?').join(',')})`
+    ) SELECT m.id, m.name, m.active, m.color_id, EXISTS(SELECT 1 FROM ancestors a JOIN material_categories c ON c.id = a.category_id WHERE a.material_id = m.id AND c.is_accessory = 1 AND c.active = 1) AS accessory FROM materials m WHERE m.id IN (${ids.map(() => '?').join(',')})`
       )
-      .all(...ids, ...ids) as Array<{ id: number; name: string; active: number; accessory: number }>
+      .all(...ids, ...ids) as Array<{ id: number; name: string; active: number; accessory: number; color_id: number | null }>
     for (const row of rows) materials.set(row.id, row)
   }
-  const colors = new Map<number, { id: number; code: string; name: string; active: number; related_material_id: number | null }>()
+  const colors = new Map<number, { id: number; code: string; name: string; active: number }>()
   if (colorIds.size) {
     const ids = [...colorIds]
     const rows = db
       .prepare(
-        `SELECT id, code, name, active, related_material_id FROM color_finish_catalog WHERE id IN (${ids.map(() => '?').join(',')})`
+        `SELECT id, code, name, active FROM color_finish_catalog WHERE id IN (${ids.map(() => '?').join(',')})`
       )
-      .all(...ids) as Array<{ id: number; code: string; name: string; active: number; related_material_id: number | null }>
+      .all(...ids) as Array<{ id: number; code: string; name: string; active: number }>
     for (const row of rows) colors.set(row.id, row)
   }
   return inputs.map((input, index) => {
@@ -209,7 +209,7 @@ export function prepareItemSelections(
           if (!color) invalid('اللون المحدد غير موجود في كتالوج الألوان')
           const previousPair = previousMaterial?.colors?.find(c => c.colorId === id)
           // An unchanged historical pair remains frozen even if the catalog is later reassigned.
-          if (!previousPair && color.related_material_id !== group.materialId) invalid('اللون المحدد لا يرتبط بهذه المادة في كتالوج الألوان')
+          if (!previousPair && materials.get(group.materialId)?.color_id !== id) invalid('اللون المحدد لا يرتبط بهذه المادة في كتالوج الألوان')
           if (!previousPair && !color.active) invalid('اللون المحدد غير قابل للاختيار')
           return previousPair ?? savedColors.find(c => c.colorId === id) ?? { colorId: id, code: color.code, name: color.name }
         })
@@ -245,7 +245,7 @@ export function prepareItemSelections(
           continue
         }
         const catalog = color.colorId !== null ? colors.get(color.colorId) : undefined
-        const material = catalog?.related_material_id != null ? selectedMaterials.find(m => m.materialId === catalog.related_material_id) : undefined
+        const material = catalog ? selectedMaterials.find(m => m.materialId !== null && materials.get(m.materialId)?.color_id === catalog.id) : undefined
         if (material) material.colors!.push(color)
         else if (savedUnmapped.some(c => c.colorId === color.colorId && c.code === color.code && c.name === color.name) || color.colorId === null) {
           if (keepUnmapped(color)) unassigned.push(color)

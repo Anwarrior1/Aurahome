@@ -69,7 +69,7 @@ files and backup/configuration directories remain intact. `--report` is optional
 
 From a clean Windows x64 checkout, run `npm ci`, then `npm run build:win`.
 The unsigned NSIS installer is written to
-`release/AURA-home-TEST-Setup-0.1.0.exe`. The manual GitHub Actions workflow
+`release/AURA-home-TEST-Setup-0.1.1.exe`. The manual GitHub Actions workflow
 `Windows x64 test installer` runs checks, verifies the native SQLite module
 and packaged resources, uploads that `.exe` as the `AURA-home-Windows-x64-test`
 artifact, then creates a private TEST pre-release with the `.exe` attached.

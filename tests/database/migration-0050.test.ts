@@ -74,7 +74,7 @@ describe('0050 CC03 username unique among live users', () => {
         expect(() => insertUser(verified, 504, 'hadi', null, 501)).toThrow(/UNIQUE/)
         expect(() => insertUser(verified, 505, 'sara', null, 501)).toThrow(/UNIQUE/)
         expect(verified.prepare("SELECT id FROM users WHERE username = 'hadi' ORDER BY id").all()).toEqual([{ id: 501 }, { id: 503 }])
-        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+        expect(verified.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
         expect(verified.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
         expect(verified.pragma('foreign_key_check')).toEqual([])
       } finally {

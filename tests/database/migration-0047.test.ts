@@ -35,7 +35,7 @@ const plan = (raw: Database.Database) =>
 
 describe('0047 DB-16 cash balance covering index', () => {
   it('is appended to the pinned history without changing any released identity', () => {
-    expect(CURRENT_MIGRATION_INDEX).toBe(52)
+    expect(CURRENT_MIGRATION_INDEX).toBe(53)
     expect(CANONICAL_MIGRATION_HISTORY[47]).toMatchObject({
       idx: 47,
       tag: '0047_db16_cash_balance_covering_index'
@@ -72,7 +72,7 @@ describe('0047 DB-16 cash balance covering index', () => {
           .map((column) => column.name)
       ).toEqual(['account_id', 'occurred_at', 'direction', 'amount_minor'])
       expect(plan(raw)).toMatch(/USING COVERING INDEX cash_transactions_account_idx/)
-      expect(raw.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 53 })
+      expect(raw.prepare('SELECT COUNT(*) AS c FROM __drizzle_migrations').get()).toEqual({ c: 54 })
       expect(raw.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }])
       expect(raw.pragma('foreign_key_check')).toEqual([])
     } finally {

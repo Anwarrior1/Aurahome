@@ -100,10 +100,8 @@ export function SearchableMaterialSelect({
    *  (نوع المادة's call site does) to keep no such row, exactly as
    *  before this correction. */
   noneLabel?: string
-  /** When the field currently holds legacy free text and no id, shows
-   *  that text as the trigger's current value instead of the generic
-   *  placeholder — matching what the native <select> used to show
-   *  for a line saved before the catalog link existed. */
+  /** Shows the saved label when its ID is absent from current options,
+   *  including legacy free text and historical inactive associations. */
   legacyLabel?: string | null
 }): ReactElement {
   const { isOpen: open, close, toggle } = useSingleOpenDropdown()
@@ -113,8 +111,7 @@ export function SearchableMaterialSelect({
   const searchRef = useRef<HTMLInputElement>(null)
 
   const selectedMaterial = materials.find((m) => String(m.id) === value)
-  const triggerLabel =
-    selectedMaterial?.name ?? (value === '' ? legacyLabel : undefined) ?? undefined
+  const triggerLabel = selectedMaterial?.name ?? legacyLabel ?? undefined
 
   const filtered = useMemo(() => filterMaterialTypeOptions(materials, query), [materials, query])
   const results = useMemo(

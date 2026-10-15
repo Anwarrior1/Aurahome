@@ -37,6 +37,13 @@ export function useQuery<T>(
   }, [reload])
 
   useEffect(() => {
+    if (!['colors', 'materials', 'categories'].includes(group)) return
+    const refresh = () => { void reload() }
+    window.addEventListener('catalog-changed', refresh)
+    return () => window.removeEventListener('catalog-changed', refresh)
+  }, [group, reload])
+
+  useEffect(() => {
     if (!enabled || !['profit', 'dashboard', 'cash'].includes(group)) return
     const refresh = () => { void reload() }
     window.addEventListener('profit-withdrawals-changed', refresh)

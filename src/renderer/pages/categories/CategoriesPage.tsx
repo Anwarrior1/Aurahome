@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react'
-import { ChevronDown, ChevronLeft, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronLeft, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { useQuery } from '@renderer/lib/useQuery'
 import { call, ApiError } from '@renderer/lib/api'
 import { useToast } from '@renderer/lib/toast'
@@ -27,18 +27,29 @@ interface Node {
   name: string
   parentId: number | null
   active: boolean
+  showInRawMaterials: boolean
   nodeKind:
     'main_category' | 'material_family' | 'material_type' | 'inventory_leaf' | 'legacy_ambiguous'
   depth: number
   rawMaterialId: number | null
+  visibilityMaterialId: number | null
+  materialColorId: number | null
   materialCount: number
   children: Node[]
 }
-interface FullDeletePreview {
+interface MaterialDefinitionDeletePreview {
   materialId: number
   name: string
-  dependencies: Array<{ key: string; label: string; count: number }>
-  blockers: string[]
+  categoryId: number
+  blocker: string | null
+  message: string | null
+}
+interface CategoryDeletePreview {
+  categoryId: number
+  name: string
+  ownedMaterialId: number | null
+  blocker: 'children' | 'materials' | 'stock' | 'history' | 'ambiguous' | null
+  message: string | null
 }
 
 /** Direct child-material count, derived from the recursive tree. */
@@ -56,14 +67,24 @@ function subtreeMatches(node: Node, query: string): boolean {
   return node.children.some((child) => subtreeMatches(child, query))
 }
 
+function categoryPath(nodes: Node[], id: number, ancestors: string[] = []): string {
+  for (const node of nodes) {
+    const path = [...ancestors, node.name]
+    if (node.id === id) return path.join(' ← ')
+    const found = categoryPath(node.children, id, path)
+    if (found) return found
+  }
+  return ''
+}
+
 /**
  * A real expand/collapse tree (item 2/10): collapse state is per-category,
  * lives only in this component, and starts EMPTY on every fresh visit to
  * the page — so every parent begins collapsed (item 1) and any number of
  * them can be opened independently, with no forced accordion.
  *
- * Roots are visually stronger; explicit inventory leaves receive a subtle
- * badge, while organizational levels remain ordinary tree branches.
+ * Roots are visually stronger; categories with an associated material
+ * receive a type badge, while organizational nodes remain ordinary branches.
  */
 export function CategoriesPage(): ReactElement {
   const { can } = useSession()
@@ -72,6 +93,9 @@ export function CategoriesPage(): ReactElement {
     | {
         id?: number
         name: string
+        showInRawMaterials: boolean
+        linkedMaterialId?: number
+        visibilityMaterialId?: number
         parentId?: number
         levelLabel: string
       }
@@ -80,18 +104,36 @@ export function CategoriesPage(): ReactElement {
   const [error, setError] = useState<string>()
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [search, setSearch] = useState('')
-  // One shared material form creates only the final inventory leaf.
+  // Both category visibility and inventory-leaf creation use the shared material form.
   const [materialRequest, setMaterialRequest] = useState<MaterialFormRequest | undefined>()
   const [deleteDialog, setDeleteDialog] = useState<{
     materialId: number
     name: string
-    preview: FullDeletePreview
     confirmation: string
     error?: string
   }>()
+  const [categoryDeleteDialog, setCategoryDeleteDialog] = useState<CategoryDeletePreview>()
 
   const tree = useQuery<Node[]>('categories', 'tree')
+  const materials = useQuery<Material[]>('materials', 'list', {})
   const categoryOptions = flattenCategoryOptions(tree.data ?? [])
+
+  function openVisibilityMaterialForm(category: NonNullable<typeof editing>): void {
+    if (!category.name.trim()) {
+      setError('اسم التصنيف مطلوب')
+      return
+    }
+    const parentPath = category.parentId ? categoryPath(tree.data ?? [], category.parentId) : ''
+    setMaterialRequest({
+      categoryToEnable: {
+        id: category.id,
+        name: category.name.trim(),
+        parentId: category.parentId,
+        path: [parentPath, category.name.trim()].filter(Boolean).join(' ← ')
+      }
+    })
+    setError(undefined)
+  }
 
   function toggle(id: number): void {
     setExpanded((prev) => {
@@ -107,9 +149,14 @@ export function CategoriesPage(): ReactElement {
       setError('اسم التصنيف مطلوب')
       return
     }
+    if (editing.showInRawMaterials && !editing.visibilityMaterialId) {
+      openVisibilityMaterialForm(editing)
+      return
+    }
     try {
       const payload = {
-        name: editing.name,
+        ...(!editing.linkedMaterialId ? { name: editing.name } : {}),
+        showInRawMaterials: editing.showInRawMaterials,
         ...(!editing.id && editing.parentId ? { parentId: editing.parentId } : {})
       }
       if (editing.id) await call('categories', 'update', { id: editing.id, ...payload })
@@ -118,6 +165,7 @@ export function CategoriesPage(): ReactElement {
       setEditing(undefined)
       setError(undefined)
       await tree.reload()
+      window.dispatchEvent(new Event('catalog-category-changed'))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'تعذر الحفظ')
     }
@@ -125,31 +173,55 @@ export function CategoriesPage(): ReactElement {
 
   async function remove(id: number): Promise<void> {
     try {
-      await call('categories', 'remove', { id })
+      const preview = await call<CategoryDeletePreview>('categories', 'deletePreview', { id })
+      if (preview.message) {
+        toast.show(preview.message, 'error')
+        return
+      }
+      setCategoryDeleteDialog(preview)
+    } catch (err) {
+      toast.show(err instanceof ApiError ? err.message : 'تعذر فحص التصنيف', 'error')
+    }
+  }
+
+  async function confirmCategoryDelete(): Promise<void> {
+    if (!categoryDeleteDialog) return
+    try {
+      await call('categories', 'remove', { id: categoryDeleteDialog.categoryId })
       toast.show('تم حذف التصنيف', 'success')
-      await tree.reload()
+      setCategoryDeleteDialog(undefined)
+      await Promise.all([tree.reload(), materials.reload()])
+      window.dispatchEvent(new Event('catalog-category-changed'))
+      window.dispatchEvent(new Event('catalog-changed'))
     } catch (err) {
       toast.show(err instanceof ApiError ? err.message : 'تعذر الحذف', 'error')
     }
   }
 
-  async function editNode(node: Node): Promise<void> {
-    if (!node.rawMaterialId) {
-      setEditing({
-        id: node.id,
-        name: node.name,
-        levelLabel:
-          node.nodeKind === 'main_category'
-            ? 'تصنيف رئيسي'
-            : node.nodeKind === 'material_family'
-              ? 'فئة مادة'
-              : node.nodeKind === 'material_type'
-                ? 'نوع مادة'
+  function editCategory(node: Node): void {
+    setEditing({
+      id: node.id,
+      name: node.name,
+      showInRawMaterials: node.showInRawMaterials,
+      linkedMaterialId: node.rawMaterialId ?? undefined,
+      visibilityMaterialId: node.visibilityMaterialId ?? undefined,
+      parentId: node.parentId ?? undefined,
+      levelLabel:
+        node.nodeKind === 'main_category'
+          ? 'تصنيف رئيسي'
+          : node.nodeKind === 'material_family'
+            ? 'فئة مادة'
+            : node.nodeKind === 'material_type'
+              ? 'نوع مادة'
+              : node.nodeKind === 'inventory_leaf'
+                ? 'تصنيف المادة'
                 : 'عنصر تصنيف قديم'
-      })
-      setError(undefined)
-      return
-    }
+    })
+    setError(undefined)
+  }
+
+  async function editNode(node: Node): Promise<void> {
+    if (!node.rawMaterialId) return editCategory(node)
     try {
       const material = await call<Material>('materials', 'get', { id: node.rawMaterialId })
       setMaterialRequest({ material })
@@ -158,16 +230,16 @@ export function CategoriesPage(): ReactElement {
     }
   }
 
-  async function openMaterialDelete(node: Node): Promise<void> {
-    if (!node.rawMaterialId) return
+  async function openMaterialDelete(materialId: number): Promise<void> {
     try {
-      const preview = await call<FullDeletePreview>('materials', 'fullDeletePreview', {
-        id: node.rawMaterialId
-      })
+      const preview = await call<MaterialDefinitionDeletePreview>('categories', 'materialDeletePreview', { id: materialId })
+      if (preview.message) {
+        toast.show(preview.message, 'error')
+        return
+      }
       setDeleteDialog({
-        materialId: node.rawMaterialId,
-        name: node.name,
-        preview,
+        materialId,
+        name: preview.name,
         confirmation: ''
       })
     } catch (err) {
@@ -178,13 +250,15 @@ export function CategoriesPage(): ReactElement {
   async function confirmMaterialDelete(): Promise<void> {
     if (!deleteDialog) return
     try {
-      await call('materials', 'fullDelete', {
+      await call('categories', 'removeMaterial', {
         id: deleteDialog.materialId,
         confirmation: deleteDialog.confirmation
       })
       toast.show('تم حذف المادة', 'success')
       setDeleteDialog(undefined)
-      await tree.reload()
+      await Promise.all([tree.reload(), materials.reload()])
+      window.dispatchEvent(new Event('catalog-category-changed'))
+      window.dispatchEvent(new Event('catalog-changed'))
     } catch (err) {
       setDeleteDialog({
         ...deleteDialog,
@@ -211,7 +285,9 @@ export function CategoriesPage(): ReactElement {
 
     const selfMatched = searching && node.name.toLowerCase().includes(query)
     const childForceShow = forceShow || selfMatched
-    const hasChildren = node.children.length > 0
+    const directItems = (materials.data ?? []).filter((item) => item.categoryId === node.id &&
+      item.hierarchyNodeId === null && !item.creationKey?.startsWith('category-visibility:'))
+    const hasChildren = node.children.length > 0 || directItems.length > 0
     const isExpanded = searching ? true : expanded.has(node.id)
     const isTopLevel = depth === 0
     const addLabel =
@@ -222,7 +298,7 @@ export function CategoriesPage(): ReactElement {
           : node.nodeKind === 'material_type'
             ? 'صنف مادة'
             : undefined
-    const children = hasChildren
+    const children = node.children.length > 0
       ? node.children
           .map((child) => renderNode(child, depth + 1, childForceShow))
           .filter((el): el is ReactElement => el !== null)
@@ -238,8 +314,10 @@ export function CategoriesPage(): ReactElement {
           style={{ paddingRight: depth * 20 }}
         >
           <div className="category-row__label">
-            {node.nodeKind === 'inventory_leaf' && (
-              <span className="badge badge--success">مادة خام</span>
+            {node.visibilityMaterialId != null && (
+              <span className={`badge badge--${node.materialColorId != null ? 'info' : 'success'}`}>
+                {node.materialColorId != null ? 'مادة ملونة' : 'مادة خام'}
+              </span>
             )}
             {node.nodeKind === 'legacy_ambiguous' && (
               <span className="badge badge--neutral">قديم — يحتاج مراجعة</span>
@@ -280,11 +358,13 @@ export function CategoriesPage(): ReactElement {
                     if (node.nodeKind === 'material_type') {
                       setMaterialRequest({
                         parentNodeId: node.id,
+                        parentNodePath: categoryPath(tree.data ?? [], node.id),
                         clientRequestId: crypto.randomUUID()
                       })
                     } else {
                       setEditing({
                         name: '',
+                        showInRawMaterials: false,
                         parentId: node.id,
                         levelLabel: addLabel
                       })
@@ -293,6 +373,23 @@ export function CategoriesPage(): ReactElement {
                   }}
                 >
                   + إضافة {addLabel}
+                </Button>
+              )}
+              {node.nodeKind === 'material_type' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditing({
+                      name: '',
+                      showInRawMaterials: false,
+                      parentId: node.id,
+                      levelLabel: 'تصنيف فرعي'
+                    })
+                    setError(undefined)
+                  }}
+                >
+                  + تصنيف فرعي
                 </Button>
               )}
               <button
@@ -304,6 +401,17 @@ export function CategoriesPage(): ReactElement {
               >
                 <Pencil size={15} strokeWidth={2.25} aria-hidden="true" />
               </button>
+              {node.rawMaterialId && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="إعدادات التصنيف"
+                  aria-label={`إعدادات تصنيف ${node.name}`}
+                  onClick={() => editCategory(node)}
+                >
+                  <Settings2 size={15} strokeWidth={2.25} aria-hidden="true" />
+                </button>
+              )}
               {node.rawMaterialId ? (
                 can(P.materials.fullDelete) && (
                   <button
@@ -311,7 +419,7 @@ export function CategoriesPage(): ReactElement {
                     className="icon-btn icon-btn--danger"
                     title="حذف"
                     aria-label="حذف"
-                    onClick={() => void openMaterialDelete(node)}
+                    onClick={() => void openMaterialDelete(node.rawMaterialId!)}
                   >
                     <Trash2 size={15} strokeWidth={2.25} aria-hidden="true" />
                   </button>
@@ -330,8 +438,19 @@ export function CategoriesPage(): ReactElement {
             </div>
           )}
         </div>
-        {hasChildren && isExpanded && children.length > 0 && (
-          <div className="category-branch__children">{children}</div>
+        {hasChildren && isExpanded && (
+          <div className="category-branch__children">
+            {children}
+            {directItems.map((item) => (
+              <div key={`material-${item.id}`} className="category-row category-row--child" style={{ paddingRight: (depth + 1) * 20 }}>
+                <div className="category-row__label"><span className="category-row__name">{item.name} — {item.sku}</span></div>
+                <div className="row-actions">
+                  {can(P.materials.manage) && <button type="button" className="icon-btn" title="تعديل المادة" aria-label={`تعديل المادة ${item.sku}`} onClick={() => setMaterialRequest({ material: item })}><Pencil size={15} strokeWidth={2.25} aria-hidden="true" /></button>}
+                  {can(P.materials.fullDelete) && <button type="button" className="icon-btn icon-btn--danger" title="حذف المادة" aria-label={`حذف المادة ${item.sku}`} onClick={() => void openMaterialDelete(item.id)}><Trash2 size={15} strokeWidth={2.25} aria-hidden="true" /></button>}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     )
@@ -346,12 +465,12 @@ export function CategoriesPage(): ReactElement {
     <>
       <PageHeader
         title="تصنيفات المواد"
-        subtitle="التصنيف الرئيسي وفئة المادة ونوع المادة للتنظيم؛ صنف المادة النهائي فقط يصبح مادة مخزونية"
+        subtitle="يمكن إظهار أي تصنيف في مواد الخام، حتى لو كان له تصنيفات فرعية"
         actions={
           can(P.materials.manage) && (
             <Button
               onClick={() => {
-                setEditing({ name: '', levelLabel: 'تصنيف رئيسي' })
+                setEditing({ name: '', showInRawMaterials: false, levelLabel: 'تصنيف رئيسي' })
                 setError(undefined)
               }}
             >
@@ -378,7 +497,7 @@ export function CategoriesPage(): ReactElement {
       </Card>
 
       <Modal
-        open={Boolean(editing)}
+        open={Boolean(editing) && !materialRequest}
         title={editing?.id ? `تعديل ${editing.levelLabel}` : `${editing?.levelLabel ?? ''} جديد`}
         onClose={() => setEditing(undefined)}
         footer={
@@ -394,9 +513,33 @@ export function CategoriesPage(): ReactElement {
         <Field label={`اسم ${editing?.levelLabel ?? 'التصنيف'}`} required>
           <Input
             value={editing?.name ?? ''}
+            disabled={Boolean(editing?.linkedMaterialId)}
             onChange={(e) => setEditing({ ...editing!, name: e.target.value })}
           />
         </Field>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={editing?.showInRawMaterials ?? false}
+            onChange={(e) => {
+              if (e.target.checked && !editing?.visibilityMaterialId) {
+                openVisibilityMaterialForm(editing!)
+              } else {
+                setEditing({ ...editing!, showInRawMaterials: e.target.checked })
+              }
+            }}
+          />
+          <span>يظهر في مواد الخام</span>
+        </label>
+        {editing?.visibilityMaterialId && (
+          <Button variant="secondary" onClick={() => {
+            void call<Material>('materials', 'get', { id: editing.visibilityMaterialId })
+              .then((material) => setMaterialRequest({ material }))
+              .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذر تحميل المادة'))
+          }}>
+            تعديل المادة
+          </Button>
+        )}
       </Modal>
 
       <MaterialFormModal
@@ -404,10 +547,27 @@ export function CategoriesPage(): ReactElement {
         categoryOptions={categoryOptions}
         onClose={() => setMaterialRequest(undefined)}
         onSaved={() => {
+          if (materialRequest?.categoryToEnable) setEditing(undefined)
           setMaterialRequest(undefined)
-          void tree.reload()
+          void Promise.all([tree.reload(), materials.reload()])
+          window.dispatchEvent(new Event('catalog-category-changed'))
         }}
       />
+
+      <Modal
+        open={Boolean(categoryDeleteDialog)}
+        title="حذف التصنيف نهائيًا"
+        onClose={() => setCategoryDeleteDialog(undefined)}
+        footer={<>
+          <Button variant="destructive" onClick={() => void confirmCategoryDelete()}>حذف نهائي</Button>
+          <Button variant="secondary" onClick={() => setCategoryDeleteDialog(undefined)}>إلغاء</Button>
+        </>}
+      >
+        <p>{categoryDeleteDialog?.ownedMaterialId != null
+          ? 'سيتم حذف هذا التصنيف والمادة المرتبطة به نهائيًا. هل تريد المتابعة؟'
+          : 'سيتم حذف هذا التصنيف نهائيًا. هل تريد المتابعة؟'}</p>
+        <p>{categoryDeleteDialog?.name}</p>
+      </Modal>
 
       <Modal
         open={Boolean(deleteDialog)}
@@ -417,10 +577,7 @@ export function CategoriesPage(): ReactElement {
           <>
             <Button
               variant="destructive"
-              disabled={
-                Boolean(deleteDialog?.preview.blockers.length) ||
-                deleteDialog?.confirmation.trim() !== deleteDialog?.name.trim()
-              }
+              disabled={deleteDialog?.confirmation.trim() !== deleteDialog?.name.trim()}
               onClick={() => void confirmMaterialDelete()}
             >
               حذف نهائي
@@ -432,15 +589,7 @@ export function CategoriesPage(): ReactElement {
         }
       >
         <ErrorNote>{deleteDialog?.error}</ErrorNote>
-        {(deleteDialog?.preview.blockers.length ?? 0) > 0 && (
-          <div className="error-note">
-            لا يمكن الحذف: {deleteDialog!.preview.blockers.join('، ')}
-          </div>
-        )}
-        <p className="muted">
-          يستخدم هذا الإجراء فحص تبعيات المادة نفسه المستخدم في صفحة المواد الخام، ولا يحذف أي فرع
-          بصمت.
-        </p>
+        <p className="muted">سيتم حذف المادة غير المستخدمة نهائيًا بعد إعادة فحص الرصيد والمراجع.</p>
         <Field label={`للتأكيد، اكتب اسم المادة "${deleteDialog?.name ?? ''}"`} required>
           <Input
             value={deleteDialog?.confirmation ?? ''}
